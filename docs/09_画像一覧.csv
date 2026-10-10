@@ -1,0 +1,23 @@
+﻿サイト,掲載ページ,掲載セクション,ファイル名（配信サイズ別）,画像の内容,元画像の出典,元画像の解像度,掲載ファイルの最大解像度,差し替え優先度,alt
+弁当事業サイト,TOP,毎日のおいしさを、まとまった数でも。,bento-chuka-01-480.webp / bento-chuka-01-640.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存 assets/images/bento-business.webp,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,セントラルキッチンで製造した中華惣菜の弁当。ご飯と数種類のおかずを仕切り付きの容器に盛り付けている
+弁当事業サイト,TOP,原点は、中華料理店「海老専家」。,dish-shrimp-480.webp / dish-shrimp-800.webp / dish-shrimp-998.webp,海老と野菜の炒め物（海老専家の料理）,ebisenka-honten.jp /menu「menu_img001.jpg」,1000×665,998×665,C 低：現状のままで可,海老専家の海老と野菜の炒め物
+弁当事業サイト,TOP,原点は、中華料理店「海老専家」。,dish-beef-480.webp / dish-beef-800.webp / dish-beef-1197.webp,牛肉とたけのこの炒め物（海老専家の料理）,ebisenka-honten.jp /menu「menu_img004.jpg」,1200×798,1197×798,C 低：現状のままで可,海老専家の牛肉とたけのこの炒め物
+弁当事業サイト,TOP,原点は、中華料理店「海老専家」。,dish-chicken-480.webp / dish-chicken-800.webp / dish-chicken-1197.webp,油淋鶏（海老専家の料理）,ebisenka-honten.jp /menu「menu_img005.jpg」,1200×798,1197×798,C 低：現状のままで可,海老専家の油淋鶏
+弁当事業サイト,TOP,中華惣菜を、ご飯と一緒に。,bento-chuka-01-480.webp / bento-chuka-01-640.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存 assets/images/bento-business.webp,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,ご飯と中華惣菜を組み合わせた弁当
+弁当事業サイト,TOP,[フッター]（全ページ共通）,logo-paper.webp,海老専家 筆文字ロゴ,コーポレート既存 contact-ebisenka-logo.webp を透過加工,1200×239,420×82,— ロゴ,海老専家
+弁当事業サイト,法人向け弁当卸,法人向け弁当卸,bento-chuka-01-480.webp / bento-chuka-01-640.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存 assets/images/bento-business.webp,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,卸販売している中華惣菜の弁当
+弁当事業サイト,法人向け弁当卸,取引先としての強み,dish-spread-480.webp / dish-spread-800.webp / dish-spread-998.webp,中華料理が並んだテーブル（海老専家の宴会料理）,ebisenka-honten.jp /party「party_img001.jpg」,1000×665,998×665,C 低：現状のままで可,海老専家の中華料理が並んだテーブル
+弁当事業サイト,法人向け弁当卸,取引先としての強み,dish-friedrice-480.webp / dish-friedrice-800.webp,炒飯（海老専家の料理）,ebisenka-honten.jp /menu「menu_img008.jpg」,800×533,800×533,C 低：現状のままで可,海老専家の炒飯
+弁当事業サイト,法人向け弁当卸,取引先としての強み,dish-shrimp-chopsticks-480.webp / dish-shrimp-chopsticks-600.webp,箸で持ち上げた海老（海老専家の料理）,ebisenka-honten.jp トップ「top_img003.jpg」,600×400,600×400,C 低：現状のままで可,海老専家の海老料理
+弁当事業サイト,弁当紹介,カード「中華惣菜の弁当」,bento-chuka-01-480.webp / bento-chuka-01-640.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存 assets/images/bento-business.webp,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,ご飯と数種類の中華惣菜を仕切り付きの容器に盛り付けた弁当
+弁当事業サイト,弁当紹介,レストランの厨房で培った味づくり。,dish-shrimp-480.webp / dish-shrimp-800.webp / dish-shrimp-998.webp,海老と野菜の炒め物（海老専家の料理）,ebisenka-honten.jp /menu「menu_img001.jpg」,1000×665,998×665,C 低：現状のままで可,海老専家の海老と野菜の炒め物
+弁当事業サイト,弁当紹介,レストランの厨房で培った味づくり。,dish-chicken-480.webp / dish-chicken-800.webp / dish-chicken-1197.webp,油淋鶏（海老専家の料理）,ebisenka-honten.jp /menu「menu_img005.jpg」,1200×798,1197×798,C 低：現状のままで可,海老専家の油淋鶏
+弁当事業サイト,弁当紹介,レストランの厨房で培った味づくり。,dish-friedrice-480.webp / dish-friedrice-800.webp,炒飯（海老専家の料理）,ebisenka-honten.jp /menu「menu_img008.jpg」,800×533,800×533,C 低：現状のままで可,海老専家の炒飯
+弁当事業サイト,製造体制・実績,中華料理店からはじまった弁当づくり,dish-spread-480.webp / dish-spread-800.webp / dish-spread-998.webp,中華料理が並んだテーブル（海老専家の宴会料理）,ebisenka-honten.jp /party「party_img001.jpg」,1000×665,998×665,B 高：セントラルキッチンの調理・製造風景の実写に差し替え,海老専家の中華料理が並んだテーブル
+弁当事業サイト,製造体制・実績,中華料理店からはじまった弁当づくり,dish-beef-480.webp / dish-beef-800.webp / dish-beef-1197.webp,牛肉とたけのこの炒め物（海老専家の料理）,ebisenka-honten.jp /menu「menu_img004.jpg」,1200×798,1197×798,B 高：セントラルキッチンの調理・製造風景の実写に差し替え,海老専家の牛肉とたけのこの炒め物
+弁当事業サイト,製造体制・実績,中華料理店からはじまった弁当づくり,dish-shrimp-chopsticks-480.webp / dish-shrimp-chopsticks-600.webp,箸で持ち上げた海老（海老専家の料理）,ebisenka-honten.jp トップ「top_img003.jpg」,600×400,600×400,B 高：セントラルキッチンの調理・製造風景の実写に差し替え,海老専家の海老料理
+コーポレート,TOP（index.html）,カード「弁当製造・卸販売」,bento-business.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存（弁当サイトと同一写真）,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,セントラルキッチンで製造している中華惣菜の弁当
+コーポレート,TOP（index.html）,カード「弁当事業」,bento-business.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存（弁当サイトと同一写真）,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,セントラルキッチンで製造している中華惣菜の弁当
+コーポレート,事業紹介（business.html）,カード「弁当製造・卸販売」,bento-business.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存（弁当サイトと同一写真）,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,セントラルキッチンで製造している中華惣菜の弁当
+コーポレート,事業紹介（business.html）,毎日の食を支える、弁当製造・卸販売。,bento-business.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存（弁当サイトと同一写真）,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,セントラルキッチンで製造している中華惣菜の弁当
+コーポレート,中華レストラン経営（restaurant.html）,福記美食｜弁当製造・販売拠点,bento-business.webp,中華惣菜の弁当（実物写真）,コーポレートサイト既存（弁当サイトと同一写真）,640×480,640×480,A 最優先：弁当の実物写真（高解像度・複数）に差し替え,福記美食のセントラルキッチンで製造している弁当
