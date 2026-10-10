@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /contact/send.php
+Disallow: /contact/thanks/
+
+Sitemap: https://ebisenka.jp/sitemap.xml

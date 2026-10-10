@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>document.documentElement.className = "js";</script>
+  <title>{{title}}</title>
+  <meta name="description" content="{{description}}">
+  {{robots}}
+  <link rel="canonical" href="{{canonical}}">
+  <meta property="og:site_name" content="海老専家 弁当事業">
+  <meta property="og:locale" content="ja_JP">
+  <meta property="og:title" content="{{title}}">
+  <meta property="og:description" content="{{description}}">
+  <meta property="og:type" content="{{og_type}}">
+  <meta property="og:url" content="{{canonical}}">
+  <meta property="og:image" content="{{og_image}}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#1d1916">
+  <link rel="icon" href="/assets/img/favicon-48.png" sizes="48x48" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&display=swap"></noscript>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <script src="/assets/js/site.js" defer></script>
+  {{ld}}
+</head>
+<body class="{{body_class}}">
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header" data-header>
+    <div class="site-header__inner wrap">
+      <a class="brand" href="/">
+        <img class="brand__logo" src="/assets/img/logo-ink.webp" width="420" height="82" alt="海老専家">
+        <span class="brand__label">弁当製造・卸販売</span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="global-nav" data-menu-toggle>
+        <span class="menu-toggle__bars" aria-hidden="true"></span>
+        <span class="menu-toggle__text">メニュー</span>
+      </button>
+      <nav class="global-nav" id="global-nav" aria-label="メインメニュー" data-nav>
+        <ul class="global-nav__list">{{nav}}</ul>
+        <a class="btn btn--red btn--sm global-nav__cta" href="/contact/">お問い合わせ・お見積もり</a>
+      </nav>
+    </div>
+  </header>
+
+  {{breadcrumb}}
+
+  <main id="main">
+{{content}}
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__grid">
+      <div class="site-footer__brand">
+        <img src="/assets/img/logo-paper.webp" width="420" height="82" alt="海老専家" loading="lazy">
+        <p>弁当の製造・卸販売<br>法人向け卸・大口注文のご相談窓口</p>
+      </div>
+      <nav class="site-footer__nav" aria-label="フッターメニュー">
+        <ul>
+          <li><a href="/">トップ</a></li>
+          <li><a href="/wholesale/">法人向け弁当卸</a></li>
+          <li><a href="/bento/">弁当紹介</a></li>
+          <li><a href="/kitchen/">製造体制・実績</a></li>
+          <li><a href="/about/">会社案内</a></li>
+          <li><a href="/contact/">お問い合わせ</a></li>
+          <li><a href="/privacy/">プライバシーポリシー</a></li>
+        </ul>
+      </nav>
+      <div class="site-footer__company">
+        <p class="site-footer__label">運営会社</p>
+        <p><strong>株式会社福進発展</strong><br>〒162-0821 東京都新宿区津久戸町4-7 OSビル1F</p>
+        <ul class="site-footer__links">
+          <li><a href="https://fukushin-e.co.jp/" target="_blank" rel="noopener">コーポレートサイト</a></li>
+          <li><a href="https://ebisenka-honten.jp/" target="_blank" rel="noopener">中華料理 海老専家（店舗サイト）</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-footer__copy wrap"><small>&copy; {{year}} Fukushin Expansion Co.,Ltd.</small></p>
+  </footer>
+
+  <div class="sticky-cta" data-sticky-cta role="region" aria-label="お問い合わせへのご案内">
+    <a class="btn btn--red" href="/contact/">卸・大口注文のご相談</a>
+  </div>
+</body>
+</html>

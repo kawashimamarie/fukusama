@@ -1,0 +1,33 @@
+# ebisenka.jp 用（Apache / .htaccess 対応サーバー向け）
+# ※公開前にサーバー側の設定（nginx直配信か、Apache経由か）を確認してください。
+
+ErrorDocument 404 /404.html
+
+# www なし・https に統一
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off [OR]
+  RewriteCond %{HTTP_HOST} ^www\. [NC]
+  RewriteRule ^(.*)$ https://ebisenka.jp/$1 [R=301,L]
+</IfModule>
+
+# 設定ファイルへの直接アクセスを禁止
+<Files "config.php">
+  Require all denied
+</Files>
+
+# 静的ファイルのキャッシュ
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp "access plus 30 days"
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType text/css "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>

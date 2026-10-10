@@ -1,0 +1,117 @@
+<!--meta {
+  "path": "/contact/",
+  "title": "お問い合わせ・お見積もり｜法人向け弁当卸のご相談｜海老専家 弁当事業",
+  "description": "法人向けの弁当卸・仕入れ、大口注文のご相談・お見積もりはこちらのフォームから。ご希望の数量・納品地域・開始時期をお知らせください。担当者よりご連絡します。",
+  "priority": "0.9",
+  "body_class": "page-contact",
+  "breadcrumb": [["/contact/", "お問い合わせ"]]
+} -->
+    <section class="page-hero">
+      <div class="wrap page-hero__grid">
+        <div>
+          <p class="eyebrow">CONTACT</p>
+          <h1>お問い合わせ・<br>お見積もり</h1>
+          <p class="lead" style="margin-top:20px">法人向けの弁当卸・仕入れ、大口注文のご相談を承ります。<br>数量や条件が決まっていない段階でもお気軽にご相談ください。</p>
+        </div>
+        <div class="page-hero__mini-tray" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+    </section>
+
+    <section class="section section--rice">
+      <div class="wrap form-layout">
+        <form class="form" action="/contact/send.php" method="post" accept-charset="UTF-8">
+          <fieldset>
+            <legend>ご連絡先</legend>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-company">会社名 <span class="badge badge--req">必須</span></label>
+                <input type="text" id="f-company" name="company" autocomplete="organization" required maxlength="100">
+              </div>
+              <div class="field">
+                <label for="f-name">ご担当者名 <span class="badge badge--req">必須</span></label>
+                <input type="text" id="f-name" name="name" autocomplete="name" required maxlength="60">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-email">メールアドレス <span class="badge badge--req">必須</span></label>
+                <input type="email" id="f-email" name="email" autocomplete="email" required maxlength="200" inputmode="email">
+              </div>
+              <div class="field">
+                <label for="f-tel">電話番号 <span class="badge">任意</span></label>
+                <input type="tel" id="f-tel" name="tel" autocomplete="tel" maxlength="30" inputmode="tel">
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>ご相談の内容</legend>
+            <div class="field">
+              <span class="label" id="f-type-label">お問い合わせ種別 <span class="badge badge--req">必須</span></span>
+              <div class="radio-list" role="radiogroup" aria-labelledby="f-type-label">
+                <label><input type="radio" name="type" value="継続的な卸取引・仕入れのご相談" required> 継続的な卸取引・仕入れのご相談</label>
+                <label><input type="radio" name="type" value="大口注文（会議・イベントなど）のご相談"> 大口注文（会議・イベントなど）のご相談</label>
+                <label><input type="radio" name="type" value="弁当販売の新規事業についてのご相談"> 弁当販売の新規事業についてのご相談</label>
+                <label><input type="radio" name="type" value="その他"> その他</label>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-qty">ご希望の数量 <span class="badge">任意</span></label>
+                <input type="text" id="f-qty" name="quantity" maxlength="100" placeholder="例：1回あたり100食・週3回">
+                <p class="hint">未定の場合は空欄で構いません。</p>
+              </div>
+              <div class="field">
+                <label for="f-area">希望納品地域 <span class="badge">任意</span></label>
+                <input type="text" id="f-area" name="area" maxlength="100" placeholder="例：東京都港区">
+                <p class="hint">市区町村までお知らせください。対応可否は確認のうえご回答します。</p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="f-start">希望開始時期 <span class="badge">任意</span></label>
+              <select id="f-start" name="start">
+                <option value="">選択してください</option>
+                <option>できるだけ早く</option>
+                <option>1か月以内</option>
+                <option>3か月以内</option>
+                <option>半年以内</option>
+                <option>時期は未定</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-message">お問い合わせ内容 <span class="badge badge--req">必須</span></label>
+              <textarea id="f-message" name="message" required maxlength="3000" placeholder="ご利用の形態（販売スペースでの販売、社員向けの昼食など）、ご予算の目安、ご質問などをご記入ください。"></textarea>
+            </div>
+          </fieldset>
+
+          <div class="hp-field" aria-hidden="true">
+            <label for="f-website">このフィールドは空欄のままにしてください</label>
+            <input type="text" id="f-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+
+          <label class="consent">
+            <input type="checkbox" name="agree" value="1" required>
+            <span><a href="/privacy/" target="_blank" rel="noopener">プライバシーポリシー</a>に同意のうえ送信します。<span class="badge badge--req">必須</span></span>
+          </label>
+
+          <button class="btn btn--red" type="submit">この内容で送信する</button>
+          <p class="note" style="margin-top:14px;text-align:center">送信後、担当者より順次ご連絡します。</p>
+        </form>
+
+        <div class="form-aside">
+          <div class="aside-card">
+            <h2>送信後の流れ</h2>
+            <ol>
+              <li>担当者より、メールまたはお電話でご連絡します。</li>
+              <li>販売形態・数量・納品先などの詳細をうかがいます。</li>
+              <li>お取引の可否とお見積もりをご案内します。</li>
+            </ol>
+            <p class="note">ご相談内容によっては、ご希望に沿えない場合があります。</p>
+          </div>
+          <div class="aside-tel">
+            <p>お電話でのお問い合わせ<br><span class="note">株式会社福進発展</span></p>
+            <a href="tel:0332691461">03-3269-1461</a>
+          </div>
+        </div>
+      </div>
+    </section>
