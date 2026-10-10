@@ -7,7 +7,8 @@
   index.html          プレビューの入口（両サイトへのリンクと注意書き）
   bento/              弁当事業サイト（パスを /<dir>/bento/ 用に変換、フォームはテストモード）
   corporate/          コーポレートサイト（修正版。お問い合わせはテスト用スタブ）
-  .htaccess           Basic認証・検索エンジン除外・ディレクトリ一覧禁止
+  .htaccess           （--auth htaccess の場合のみ）Basic認証・検索エンジン除外・一覧禁止
+  ※既定（--auth panel）では .htaccess を含めず、鍵はコントロールパネルの「アクセス制限」で掛ける
 
 - パスワードやパスワードファイル（.htpasswd）はここでは作らない（Gitにも保存しない）
 - 本番用の bento-site/dist/ とは別フォルダに出力し、混在させない
@@ -118,7 +119,13 @@ Require valid-user
 # --- ファイル一覧の表示・設定ファイルへの直接アクセスを禁止 ---
 Options -Indexes
 <FilesMatch "^(config\\.php|\\.ht.*)$">
-  Require all denied
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
 </FilesMatch>
 
 ErrorDocument 404 /{dir}/bento/404.html
@@ -151,29 +158,48 @@ INDEX = """<!doctype html>
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", default="_preview-fk2026", help="プレビュー用フォルダ名（ebisenka.jp 直下に作る）")
+    ap.add_argument("--auth", choices=["panel", "htaccess"], default="panel",
+                    help="panel＝コントロールパネルの「アクセス制限」で鍵を掛ける（推奨・.htaccess を含めない）／"
+                         "htaccess＝.htaccess と .htpasswd で鍵を掛ける")
     ap.add_argument("--htpasswd-path", default="/REPLACE/WITH/FULL/PATH/OUTSIDE/PUBLIC/.htpasswd_preview",
-                    help="サーバー上の .htpasswd のフルパス（公開フォルダの外）。不明なら後で .htaccess を書き換える")
+                    help="--auth htaccess の場合のみ：サーバー上の .htpasswd のフルパス（公開フォルダの外）")
+    ap.add_argument("--skip-live-check", action="store_true", help="公開中コーポレートとの差分確認を省略（通常は使わない）")
     args = ap.parse_args()
     if not re.fullmatch(r"[A-Za-z0-9_-]+", args.dir):
         sys.exit("--dir は英数字・_・- のみ")
 
+    # 正本（お名前.com で公開中のデータ）が開発用コピーの取り込み時点から変わっていないか確認
+    if not args.skip_live_check:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import check_live
+        print("公開中のコーポレートサイト（正本）を確認しています…")
+        if check_live.check():
+            sys.exit("公開中データが取り込み時点から変わっています。正本から修正版を作り直すまでパッケージは作りません。")
+
     base = "/" + args.dir
     out = OUT_ROOT / args.dir
-    if OUT_ROOT.exists():
-        shutil.rmtree(OUT_ROOT)
+    if out.exists():
+        shutil.rmtree(out)
     out.mkdir(parents=True)
     build_bento(out / "bento", base + "/bento", base + "/corporate")
     build_corporate(out / "corporate", base + "/bento")
     (out / "index.html").write_text(INDEX.format(noindex=NOINDEX), encoding="utf-8")
-    (out / ".htaccess").write_text(HTACCESS.format(dir=args.dir, htpasswd=args.htpasswd_path), encoding="utf-8")
+    if args.auth == "htaccess":
+        (out / ".htaccess").write_text(HTACCESS.format(dir=args.dir, htpasswd=args.htpasswd_path), encoding="utf-8")
 
+    # panel 方式では、フォルダ内のどこにも .htaccess があってはならない（コントロールパネルの制限が無効になるため）
+    stray = [p for p in out.rglob(".htaccess") if not (args.auth == "htaccess" and p == out / ".htaccess")]
+    if stray:
+        sys.exit(f"想定外の .htaccess があります：{stray}")
+
+    archive = shutil.make_archive(str(OUT_ROOT / f"{args.dir}-{args.auth}"), "zip", root_dir=OUT_ROOT, base_dir=args.dir)
     files = [p for p in out.rglob("*") if p.is_file()]
     size = sum(p.stat().st_size for p in files)
-    print(f"作成しました：{out}  （{len(files)} ファイル・{size / 1024 / 1024:.1f}MB）")
+    print(f"作成しました：{out}  （{len(files)} ファイル・{size / 1024 / 1024:.1f}MB、鍵：{args.auth}）")
+    print(f"アップロード用 zip：{archive}")
     print(f"想定URL：https://ebisenka.jp{base}/")
-    if "REPLACE" in args.htpasswd_path:
+    if args.auth == "htaccess" and "REPLACE" in args.htpasswd_path:
         print("※ .htaccess の AuthUserFile は仮の値です。サーバーのフルパス確認後に --htpasswd-path を指定して作り直してください")
-
 
 if __name__ == "__main__":
     main()
