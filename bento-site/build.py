@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ebisenka.jp（弁当事業サイト）の静的HTMLを生成する。
 
-使い方: python3 build.py
+使い方: python3 build.py [出力先フォルダ]
   src/pages/ の各ページ（先頭に <!--meta {...} --> を持つHTML断片）を
   共通レイアウトで包み、dist/ に公開用ファイル一式を出力する。
 外部ライブラリは使わない（Python 3.8+ 標準ライブラリのみ）。
@@ -206,4 +206,7 @@ def build():
 
 
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:  # 出力先を変える場合（プレビュー用パッケージ作成時など）。省略時は dist/
+        DIST = Path(sys.argv[1]).resolve()
     build()

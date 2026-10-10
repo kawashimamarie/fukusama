@@ -6,5 +6,5 @@
 |---|---|---|
 | `corporate/` | https://fukushin-e.co.jp/ | コーポレートサイト（2026-10-10 時点の公開版を取り込み） |
 | `bento-site/` | https://ebisenka.jp/ （予定） | 弁当事業専用サイト |
-| `preview/` | 公開しない | ローカルプレビュー（`python3 preview/serve.py`） |
+| `preview/` | 公開しない | ローカルプレビュー（`python3 preview/serve.py`）、サーバー用プレビュー一式の作成（`python3 preview/build_package.py` → `preview-package/`、Git管理外） |
 | `docs/` | 公開しない | 設計・SEO・画像一覧・公開手順・未確認事項・プレビュー録画 |

@@ -6,6 +6,8 @@ mb_language('Japanese');
 mb_internal_encoding('UTF-8');
 
 $config = require __DIR__ . '/config.php';
+$base = rtrim((string) ($config['base_path'] ?? ''), '/');
+$testMode = !empty($config['test_mode']);
 
 function h(string $s): string
 {
@@ -36,6 +38,7 @@ function field(string $key, bool $multi = false, int $max = 200): string
 
 function fail(array $errors, int $status = 400): void
 {
+    global $base;
     http_response_code($status);
     header('Content-Type: text/html; charset=UTF-8');
     $items = '';
@@ -45,7 +48,7 @@ function fail(array $errors, int $status = 400): void
     echo '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
         . '<meta name="viewport" content="width=device-width, initial-scale=1">'
         . '<meta name="robots" content="noindex"><title>入力内容をご確認ください｜海老専家 弁当事業</title>'
-        . '<link rel="stylesheet" href="/assets/css/site.css"></head><body>'
+        . '<link rel="stylesheet" href="' . h($base) . '/assets/css/site.css"></head><body>'
         . '<main class="section"><div class="wrap" style="max-width:760px">'
         . '<p class="eyebrow">CONTACT</p><h1 class="h2">入力内容をご確認ください</h1>'
         . '<div class="form-errors" style="margin-top:24px"><ul style="padding-left:1.2em">' . $items . '</ul></div>'
@@ -55,7 +58,7 @@ function fail(array $errors, int $status = 400): void
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    header('Location: /contact/', true, 303);
+    header('Location: ' . $base . '/contact/', true, 303);
     exit;
 }
 
@@ -68,14 +71,14 @@ if ($host === '' || !in_array(strtolower($host), $config['allowed_hosts'], true)
 
 // ボット対策（入力されていたら送信したように見せて終了）
 if (!empty($_POST['website'])) {
-    header('Location: /contact/thanks/', true, 303);
+    header('Location: ' . $base . '/contact/thanks/', true, 303);
     exit;
 }
 
 // 連続送信の制限
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $lockFile = sys_get_temp_dir() . '/ebisenka_contact_' . hash('sha256', $ip);
-if (is_file($lockFile) && (time() - (int) filemtime($lockFile)) < (int) $config['rate_limit_seconds']) {
+if (!$testMode && is_file($lockFile) && (time() - (int) filemtime($lockFile)) < (int) $config['rate_limit_seconds']) {
     fail(['短時間に連続して送信されました。しばらく経ってから再度お試しください。'], 429);
 }
 
@@ -148,6 +151,26 @@ $body = "ebisenka.jp のお問い合わせフォームから送信がありま�
 $fromHeader = 'From: ' . mb_encode_mimeheader($config['from_name']) . ' <' . $config['from'] . '>';
 $headers = $fromHeader . "\r\n" . 'Reply-To: ' . $data['email'];
 
+// テストモード：送信せず、送信されるはずの内容を表示して終了（入力内容は保存しない）
+if ($testMode) {
+    header('Content-Type: text/html; charset=UTF-8');
+    header('X-Robots-Tag: noindex, nofollow');
+    echo '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+        . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        . '<meta name="robots" content="noindex, nofollow"><title>テスト送信の結果｜プレビュー</title>'
+        . '<link rel="stylesheet" href="' . h($base) . '/assets/css/site.css"></head><body>'
+        . '<main class="section"><div class="wrap" style="max-width:760px">'
+        . '<p class="eyebrow">TEST MODE</p><h1 class="h2">テスト送信を受け付けました</h1>'
+        . '<p class="notice" style="margin:20px 0">プレビュー環境のため、<strong>メールは送信していません</strong>。入力内容はサーバーに保存していません。'
+        . '本番では、次の内容のメールが ' . h($config['to']) . ' に届きます。</p>'
+        . '<pre style="white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;font-size:14px">'
+        . h('件名：' . $config['subject'] . "\n\n" . $body) . '</pre>'
+        . '<p class="btn-row" style="margin-top:28px"><a class="btn btn--red" href="' . h($base) . '/contact/thanks/">完了ページを確認する</a>'
+        . '<a class="btn btn--ghost" href="' . h($base) . '/contact/">フォームへ戻る</a></p>'
+        . '</div></main></body></html>';
+    exit;
+}
+
 $sent = mb_send_mail($config['to'], $config['subject'], $body, $headers, '-f' . $config['from']);
 if (!$sent) {
     fail(['送信に失敗しました。お手数ですが、時間をおいて再度お試しいただくか、お電話（03-3269-1461）でお問い合わせください。'], 500);
@@ -164,5 +187,5 @@ if (!empty($config['auto_reply'])) {
     mb_send_mail($data['email'], '【海老専家 弁当事業】お問い合わせを受け付けました', $reply, $fromHeader, '-f' . $config['from']);
 }
 
-header('Location: /contact/thanks/', true, 303);
+header('Location: ' . $base . '/contact/thanks/', true, 303);
 exit;

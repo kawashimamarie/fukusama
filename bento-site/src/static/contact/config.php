@@ -19,6 +19,13 @@ return [
     // 同一IPからの連続送信を制限（秒）
     'rate_limit_seconds' => 60,
 
+    // テストモード：true にするとメールを送信せず、送信されるはずの内容を画面に表示する（保存もしない）
+    // ※プレビュー環境専用。本番では必ず false
+    'test_mode' => false,
+
+    // サイトを置くディレクトリ（本番はドメイン直下なので空文字）。プレビューでは例 '/_preview-fk2026/bento'
+    'base_path' => '',
+
     // 許可する送信元ホスト（Origin/Referer チェック）
     'allowed_hosts' => ['ebisenka.jp', 'www.ebisenka.jp'],
 ];
