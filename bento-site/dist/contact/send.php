@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 mb_language('Japanese');
 mb_internal_encoding('UTF-8');
+date_default_timezone_set('Asia/Tokyo');
 
 $config = require __DIR__ . '/config.php';
 $base = rtrim((string) ($config['base_path'] ?? ''), '/');

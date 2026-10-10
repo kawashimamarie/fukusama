@@ -188,6 +188,7 @@ def build():
     urls = []
     for page in sorted((SRC / "pages").rglob("*.html")):
         meta, body = parse_page(page)
+        body = body.replace("[[bg-kitchen]]", re.sub(r"<!--.*?-->\s*", "", (SRC / "partials" / "bg-kitchen.html").read_text(encoding="utf-8"), flags=re.S).strip())
         body = expand_images(body)
         target = out_path(meta["path"])
         target.parent.mkdir(parents=True, exist_ok=True)

@@ -3,12 +3,13 @@
 // このファイルは .htaccess で直接アクセスを禁止しています。
 
 return [
-    // 問い合わせの受信先（※未確認：弁当事業の受付窓口アドレスを確認のうえ設定）
+    // 問い合わせの受信先（確定：2026-10-10）
     'to' => 'info@fukushin-e.co.jp',
 
-    // 送信元アドレス。サーバーのドメイン（ebisenka.jp）のアドレスを推奨。
-    // ※ebisenka.jp のメールアカウント／SPF設定を確認してください。
-    'from' => 'noreply@ebisenka.jp',
+    // 送信元アドレス（確定：2026-10-10）。From と送信エラーの戻り先（-f）に使う。
+    // お客様のメールアドレスは From に入れず、Reply-To にのみ設定する（send.php）。
+    // fukushin-e.co.jp の SPF（include:_spf.onamae.ne.jp）に、このサーバーの送信元IPが含まれることを確認済み。
+    'from' => 'info@fukushin-e.co.jp',
     'from_name' => '海老専家 弁当事業サイト',
 
     'subject' => '【ebisenka.jp】弁当卸・大口注文のお問い合わせ',

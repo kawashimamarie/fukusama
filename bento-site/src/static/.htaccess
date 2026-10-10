@@ -1,12 +1,12 @@
-# ebisenka.jp 用（Apache / .htaccess 対応サーバー向け）
-# ※公開前にサーバー側の設定（nginx直配信か、Apache経由か）を確認してください。
+# ebisenka.jp 用（お名前.com レンタルサーバー：nginx の後ろの Apache で読まれる）
 
 ErrorDocument 404 /404.html
 
-# www なし・https に統一
+# www なしに統一
+# ※http→https の転送はサーバー側（nginx）で既に行われているため、ここでは書かない
+#   （%{HTTPS} で判定すると、nginx 経由の環境では転送が繰り返されるおそれがある）
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteCond %{HTTPS} off [OR]
   RewriteCond %{HTTP_HOST} ^www\. [NC]
   RewriteRule ^(.*)$ https://ebisenka.jp/$1 [R=301,L]
 </IfModule>

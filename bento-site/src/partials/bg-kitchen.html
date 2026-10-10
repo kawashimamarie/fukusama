@@ -1,0 +1,12 @@
+<!--
+  厨房の背景写真（共通部品）。[[bg-kitchen]] と書いた箇所に展開される（TOP・製造体制/セントラルキッチンの2ページ）。
+  実写真に差し替えるとき：
+    1. assets/img/ に PC用（横長・幅640/1024px）とスマートフォン用（縦長・幅490px程度）を WebP で置く
+    2. 下の src / srcset / width / height を新しいファイル名・寸法に書き換える
+    3. 自社の実写真にした場合は、「背景はイメージ写真です」の行を削除する
+-->
+      <picture class="photo-band__media">
+        <source media="(max-width: 640px)" srcset="/assets/img/kitchen-image-sp-490.webp" width="490" height="654">
+        <img src="/assets/img/kitchen-image-1024.webp" srcset="/assets/img/kitchen-image-640.webp 640w, /assets/img/kitchen-image-1024.webp 1024w" sizes="100vw" width="1024" height="654" alt="" fetchpriority="high">
+      </picture>
+      <span class="photo-band__credit">背景はイメージ写真です</span>

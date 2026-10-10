@@ -36,3 +36,27 @@
 .biz-cards__num--ink { background: var(--tray-2); font-size: clamp(30px, 3.4vw, 44px); letter-spacing: .12em; }
 .biz-cards__num small { letter-spacing: .2em; }
 @media (max-width: 860px) { .biz-cards__media { aspect-ratio: 16 / 9; } }
+
+/* 店頭販売のご案内（TOP・ヒーロー直下） */
+.takeout { padding: clamp(36px, 5vw, 56px) 0; background: var(--paper); border-bottom: 1px solid var(--line); }
+.takeout__inner { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px 48px; align-items: start; padding: clamp(24px, 3.4vw, 40px); border: 2px solid var(--red); border-radius: var(--radius-l); background: #fff; }
+.takeout__for { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--red); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .08em; }
+.takeout__head h2 { margin-top: 14px; font-family: var(--font-serif); font-size: clamp(24px, 2.8vw, 34px); line-height: 1.45; }
+.takeout__head p:not(.takeout__for) { margin-top: 12px; text-wrap: pretty; color: var(--ink-2); line-height: 1.9; }
+.takeout__facts { list-style: none; display: grid; gap: 0; border-top: 1px solid var(--line); }
+.takeout__facts li { display: grid; grid-template-columns: 7.5em 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 15px; line-height: 1.7; }
+.takeout__facts b { color: var(--red-deep); font-weight: 700; }
+.takeout__facts a { color: var(--red-deep); font-weight: 700; }
+.takeout__actions { grid-column: 1 / -1; margin-top: 4px; }
+@media (max-width: 860px) {
+  .takeout__inner { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; }
+  .takeout__head h2 { font-size: 22px; }
+  .takeout__facts li { grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 12px 0; font-size: 15px; }
+  .takeout__actions .btn { flex: 1 1 100%; justify-content: center; }
+}
+
+/* スマートフォンの下部固定ボタン（2つ並び） */
+@media (max-width: 860px) {
+  .sticky-cta--split { display: flex; gap: 8px; }
+  .sticky-cta--split .btn { width: auto; flex: 1 1 0; padding-left: 8px; padding-right: 8px; justify-content: center; font-size: 14px; }
+}
