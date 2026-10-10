@@ -4,3 +4,4 @@ __pycache__/
 .htpasswd*
 *.htpasswd
 release/
+server-backup/
