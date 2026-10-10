@@ -3,3 +3,4 @@ preview-package/
 __pycache__/
 .htpasswd*
 *.htpasswd
+release/

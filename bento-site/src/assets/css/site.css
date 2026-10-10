@@ -1324,14 +1324,13 @@ h1, h2, h3, h4, summary, .targets li, .lead { word-break: auto-phrase; text-wrap
   color: var(--red);
 }
 
-/* 写真のマスク表示演出（1回のみ・控えめ） */
-.js .reveal-media { clip-path: inset(0 0 100% 0 round var(--radius-m)); transition: clip-path 1s var(--ease); transition-delay: var(--d, 0s); }
-.js .reveal-media img { transform: scale(1.06); transition: transform 1.4s var(--ease); transition-delay: var(--d, 0s); }
-.js .reveal-media.is-visible { clip-path: inset(0 0 0 0 round var(--radius-m)); }
-.js .reveal-media.is-visible img { transform: none; }
+/* 写真のマスク表示演出（1回のみ・控えめ）
+   ※枠（.reveal-media）自体は隠さない。枠を完全に隠すと、画面に入ったことを
+     IntersectionObserver が検知できず、写真が表示されないままになるため。 */
+.js .reveal-media img { clip-path: inset(0 0 100% 0); transform: scale(1.06); transition: clip-path 1s var(--ease), transform 1.4s var(--ease); transition-delay: var(--d, 0s); }
+.js .reveal-media.is-visible img { clip-path: inset(0 0 0 0); transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .js .reveal-media { clip-path: none; }
-  .js .reveal-media img { transform: none; }
+  .js .reveal-media img { clip-path: none; transform: none; }
 }
 
 /* 下層ヒーロー（写真つき） */
