@@ -1,0 +1,38 @@
+/* ===== 福記美食（ebisenka-seavans.com）固有の上書き ===== */
+.brand--fukuki .brand__logo { width: 150px; }
+@media (max-width: 960px) { .brand--fukuki .brand__logo { width: 120px; } }
+@media (max-width: 400px) { .brand--fukuki .brand__logo { width: 104px; } }
+.site-footer__brand img { width: 170px; }
+
+/* 現在の営業形態のお知らせ */
+.status-note {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  margin-top: 26px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .28);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.status-note b { color: #ffd2c8; }
+
+/* 3つの事業カード */
+.biz-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px; list-style: none; background: var(--tray); border-radius: var(--radius-l); }
+.biz-cards > li { display: flex; flex-direction: column; background: var(--paper); border-radius: var(--radius-m); overflow: hidden; }
+.biz-cards__media { margin: 0; aspect-ratio: 4 / 3; background: var(--tray-2); overflow: hidden; }
+.biz-cards__media img { width: 100%; height: 100%; object-fit: cover; }
+.biz-cards__num { display: grid; place-items: center; height: 100%; color: var(--paper); font-family: var(--font-serif); font-size: clamp(40px, 5vw, 64px); font-weight: 800; background: var(--red); }
+.biz-cards__num small { display: block; font-size: 14px; letter-spacing: .1em; margin-top: -10px; }
+.biz-cards__body { padding: 22px 24px 26px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.biz-cards__body h3 { font-family: var(--font-serif); font-size: 21px; }
+.biz-cards__body p { font-size: 14px; color: var(--ink-2); line-height: 1.85; }
+.biz-cards__body .text-link { margin-top: auto; align-self: flex-start; }
+.biz-cards__tag { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--red); }
+@media (max-width: 860px) { .biz-cards { grid-template-columns: 1fr; } }
+.biz-cards__num--ink { background: var(--tray-2); font-size: clamp(30px, 3.4vw, 44px); letter-spacing: .12em; }
+.biz-cards__num small { letter-spacing: .2em; }
+@media (max-width: 860px) { .biz-cards__media { aspect-ratio: 16 / 9; } }

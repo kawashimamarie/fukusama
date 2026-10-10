@@ -1,0 +1,25 @@
+# ebisenka-seavans.com 公開中データのバックアップ（2026-10-10 取得・HTTPで取得できる範囲）
+# 取得元URL / SHA-256（先頭16桁） / バイト数
+https://ebisenka-seavans.com/campaign/  16c436ed6e4bd15a  27285
+https://ebisenka-seavans.com/commitment/  15be6d5327d04c33  29005
+https://ebisenka-seavans.com/contact/  ed5ba888b4d44325  29739
+https://ebisenka-seavans.com/drink/  ae56f9a95bc705c3  30295
+https://ebisenka-seavans.com/food/  c536f57546b02a08  42870
+https://ebisenka-seavans.com/  738864505e1595f3  29778
+https://ebisenka-seavans.com/info/  4c1564938df11a74  27308
+https://ebisenka-seavans.com/lunch/  9df8bcef807ce0ca  32769
+https://ebisenka-seavans.com/news/  07461dca59190a18  25929
+https://ebisenka-seavans.com/party/  368edc615d632afe  27498
+https://ebisenka-seavans.com/privacy/  a7ccb4f757cd49da  27449
+https://ebisenka-seavans.com/sitemap/  35b1647d176740d1  27304
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/images/banquet-course.jpg  6aade0adb3330aed  262338
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/fukuki-logo.png  c25ddda9f84ae216  2053471
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/images/green-vegetables.jpg  cb7c6ac8d255b0ec  53542
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/images/hero-dishes.jpg  8d6d430f2b8d8f4b  285256
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/images/lunch-set.jpg  ba5d5fe91cf02367  49189
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/images/shrimp-chili.jpg  ce23185e9a481346  43820
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/images/shrimp-pepper.jpg  b0eada31f40992e8  45792
+https://ebisenka-seavans.com/wp-content/themes/fukuki-bishoku/assets/images/spicy-shrimp.jpg  6ca4a28003a32154  36371
+
+# 注意：WordPress の PHP・データベース・管理画面の設定は HTTP では取得できないため含まれていない。
+# 本番切り替え前に、お名前.com のファイルマネージャー／FTP とデータベースのバックアップを別途取得すること。

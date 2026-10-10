@@ -4,9 +4,10 @@
   python3 preview/build_package.py [--dir _preview-fk2026] [--htpasswd-path /フルパス/.htpasswd]
 
 出力：preview-package/<dir>/   ← このフォルダごと ebisenka.jp の公開フォルダ直下に置く想定
-  index.html          プレビューの入口（両サイトへのリンクと注意書き）
+  index.html          プレビューの入口（3サイトへのリンクと注意書き）
   bento/              弁当事業サイト（パスを /<dir>/bento/ 用に変換、フォームはテストモード）
   corporate/          コーポレートサイト（修正版。お問い合わせはテスト用スタブ）
+  fukuki/             福記美食サイト（リニューアル案。フォームなし）
   .htaccess           （--auth htaccess の場合のみ）Basic認証・検索エンジン除外・一覧禁止
   ※既定（--auth panel）では .htaccess を含めず、鍵はコントロールパネルの「アクセス制限」で掛ける
 
@@ -39,12 +40,13 @@ def mark_preview(text):
     return text
 
 
-def rebase_bento(text, base, corp_base):
-    """弁当サイトはドメイン直下を前提に「/」始まりのパスを使っているので、プレビューの場所に合わせて書き換える"""
+def rebase_site(text, base, links):
+    """ドメイン直下を前提に「/」始まりのパスを使っているサイトを、プレビューの場所に合わせて書き換える。
+    links：本番ドメイン → プレビュー内のパス（サイト間リンクをプレビュー内で完結させる）"""
     # 先に「/」始まりのパスを書き換え、その後で他ドメインへのリンクを置き換える（二重に付けないため）
     text = re.sub(r'((?:href|src|action)=")/(?!/)', r"\1" + base + "/", text)
-    text = text.replace("https://fukushin-e.co.jp/", corp_base + "/")
-    text = text.replace("https://ebisenka.jp/", base + "/")
+    for live, local in links.items():
+        text = text.replace(live, local)
 
     def fix_srcset(m):
         items = [base + i if i.startswith("/") else i for i in m.group(1).split(", ")]
@@ -53,16 +55,21 @@ def rebase_bento(text, base, corp_base):
     return re.sub(r'srcset="([^"]+)"', fix_srcset, text)
 
 
-def build_bento(dest, base, corp_base):
+def build_static_site(site_dir, dest, base, links):
+    """bento-site / fukuki-site を本番と同じ手順で一時フォルダにビルドし、プレビュー用に変換してコピー"""
     with tempfile.TemporaryDirectory() as tmp:
-        # 本番と同じビルドを一時フォルダに出力し、それを変換する（本番用 dist には触れない）
-        subprocess.run([sys.executable, str(ROOT / "bento-site" / "build.py"), str(Path(tmp) / "dist")],
+        # 本番用 dist には触れない
+        subprocess.run([sys.executable, str(ROOT / site_dir / "build.py"), str(Path(tmp) / "dist")],
                        check=True, stdout=subprocess.DEVNULL)
         shutil.copytree(Path(tmp) / "dist", dest)
     for f in ("sitemap.xml", "robots.txt", ".htaccess"):
         (dest / f).unlink(missing_ok=True)
     for page in dest.rglob("*.html"):
-        page.write_text(mark_preview(rebase_bento(page.read_text(encoding="utf-8"), base, corp_base)), encoding="utf-8")
+        page.write_text(mark_preview(rebase_site(page.read_text(encoding="utf-8"), base, links)), encoding="utf-8")
+
+
+def build_bento(dest, base, links):
+    build_static_site("bento-site", dest, base, links)
     cfg = dest / "contact" / "config.php"
     c = cfg.read_text(encoding="utf-8")
     c = c.replace("'test_mode' => false,", "'test_mode' => true,")
@@ -71,11 +78,18 @@ def build_bento(dest, base, corp_base):
     cfg.write_text(c, encoding="utf-8")
 
 
-def build_corporate(dest, bento_base):
+def build_fukuki(dest, base, links):
+    build_static_site("fukuki-site", dest, base, links)
+    assert not list(dest.rglob("*.php")), "福記美食のプレビューに PHP は含めない"
+
+
+def build_corporate(dest, links):
     shutil.copytree(ROOT / "corporate", dest)
     for page in dest.glob("*.html"):
         t = page.read_text(encoding="utf-8")
-        t = t.replace("https://ebisenka.jp/", bento_base + "/")
+        for live, local in links.items():
+            if live != "https://fukushin-e.co.jp/":
+                t = t.replace(live, local)
         # 本番の mail.php は使わない・上書きしない：プレビュー専用のテスト用スタブへ送る
         t = t.replace('action="mail.php"', 'action="preview-mail.php"')
         page.write_text(mark_preview(t), encoding="utf-8")
@@ -135,21 +149,22 @@ INDEX = """<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 {noindex}
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>プレビュー｜弁当事業サイト・コーポレートサイト</title>
+<title>プレビュー｜福進発展 3サイト</title>
 <link rel="stylesheet" href="./bento/assets/css/site.css">
 </head><body>
 <main class="section"><div class="wrap" style="max-width:820px">
 <p class="eyebrow">PREVIEW</p>
 <h1 class="h2">確認用プレビュー（非公開）</h1>
 <p class="lead" style="margin:20px 0 32px">株式会社福進発展 ご担当者様向けの確認用ページです。URL・ID・パスワードは社外に共有しないでください。</p>
-<ul class="compartments compartments--2">
-  <li><h2 style="font-size:18px">弁当事業サイト</h2><p>公開予定：https://ebisenka.jp/</p><p class="btn-row" style="margin-top:16px"><a class="btn btn--red" href="./bento/">弁当事業サイトを見る</a></p></li>
-  <li><h2 style="font-size:18px">コーポレートサイト（修正版）</h2><p>公開中：https://fukushin-e.co.jp/ の修正後の状態</p><p class="btn-row" style="margin-top:16px"><a class="btn btn--ghost" href="./corporate/">コーポレートサイトを見る</a></p></li>
+<ul class="compartments">
+  <li><h2 style="font-size:18px">株式会社福進発展</h2><p>コーポレートサイト（修正版）<br>公開中：fukushin-e.co.jp</p><p class="btn-row" style="margin-top:16px"><a class="btn btn--ghost" href="./corporate/">コーポレートサイトを見る</a></p></li>
+  <li><h2 style="font-size:18px">海老専家｜法人向け弁当事業</h2><p>弁当製造・卸の営業サイト<br>公開予定：ebisenka.jp</p><p class="btn-row" style="margin-top:16px"><a class="btn btn--red" href="./bento/">弁当事業サイトを見る</a></p></li>
+  <li><h2 style="font-size:18px">福記美食</h2><p>セントラルキッチン・お弁当の店頭販売<br>リニューアル案：ebisenka-seavans.com</p><p class="btn-row" style="margin-top:16px"><a class="btn btn--ghost" href="./fukuki/">福記美食のサイトを見る</a></p></li>
 </ul>
 <div class="notice" style="margin-top:32px">
 <p><strong>お問い合わせフォームについて</strong>：プレビューではメールは送信されません。送信ボタンを押すと、本番で届くメールの内容が画面に表示されます。<br>テストの際は、実在の個人情報ではなく「テスト株式会社／test@example.com」などの架空の内容を入力してください。</p>
 </div>
-<p class="note" style="margin-top:24px">確認ポイント：PC とスマートフォンでの表示、スクロール時の表示演出、メニューの開閉、ページ間の移動、コーポレートサイトの「弁当事業の詳細を見る」から弁当サイトへの移動。</p>
+<p class="note" style="margin-top:24px">確認ポイント：PC とスマートフォンでの表示、スクロール時の表示演出、メニューの開閉、ページ間の移動、3サイト間のリンク（コーポレート → 弁当事業／福記美食、弁当事業 ⇔ 福記美食）。背景の製造風景はイメージ写真です（画面右下に表示）。</p>
 </div></main>
 </body></html>
 """
@@ -181,8 +196,14 @@ def main():
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    build_bento(out / "bento", base + "/bento", base + "/corporate")
-    build_corporate(out / "corporate", base + "/bento")
+    links = {
+        "https://ebisenka.jp/": base + "/bento/",
+        "https://fukushin-e.co.jp/": base + "/corporate/",
+        "https://ebisenka-seavans.com/": base + "/fukuki/",
+    }
+    build_bento(out / "bento", base + "/bento", links)
+    build_fukuki(out / "fukuki", base + "/fukuki", links)
+    build_corporate(out / "corporate", links)
     (out / "index.html").write_text(INDEX.format(noindex=NOINDEX), encoding="utf-8")
     if args.auth == "htaccess":
         (out / ".htaccess").write_text(HTACCESS.format(dir=args.dir, htpasswd=args.htpasswd_path), encoding="utf-8")

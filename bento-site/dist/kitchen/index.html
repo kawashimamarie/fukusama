@@ -52,14 +52,16 @@
   <nav class="breadcrumb wrap" aria-label="パンくずリスト"><ol><li><a href="/">トップ</a></li><li aria-current="page">製造体制・実績</li></ol></nav>
 
   <main id="main">
-<section class="page-hero">
-      <div class="wrap page-hero__grid">
-        <div>
-          <p class="eyebrow">KITCHEN</p>
-          <h1>製造体制・実績</h1>
-          <p class="lead" style="margin-top:20px">製造拠点「福記美食」のセントラルキッチンで、弁当を製造しています。</p>
-        </div>
-        <div class="page-hero__mini-tray" aria-hidden="true"><span></span><span></span><span></span></div>
+<section class="photo-band" style="--pos: 50% 40%" aria-labelledby="kitchen-title">
+      <picture class="photo-band__media">
+        <source media="(max-width: 640px)" srcset="/assets/img/kitchen-image-sp-490.webp" width="490" height="654">
+        <img src="/assets/img/kitchen-image-1024.webp" srcset="/assets/img/kitchen-image-640.webp 640w, /assets/img/kitchen-image-1024.webp 1024w" sizes="100vw" width="1024" height="654" alt="" fetchpriority="high">
+      </picture>
+      <span class="photo-band__credit">背景はイメージ写真です</span>
+      <div class="wrap photo-band__inner">
+        <p class="eyebrow">KITCHEN</p>
+        <h1 id="kitchen-title">製造体制・実績</h1>
+        <p class="lead">製造拠点「福記美食」のセントラルキッチンで、昼食向けのお弁当と、取引先へ卸すお弁当を製造しています。</p>
       </div>
     </section>
 
@@ -74,7 +76,8 @@
             <p>福記美食は、セントラルキッチンでの弁当製造・販売を中心とした事業拠点です。</p>
             <p>中華レストランの運営で培った調理経験を活かし、昼食向けの弁当販売や法人向け卸販売を展開しています。</p>
             <p>多いときには1,500食以上の弁当を製造するなど、まとまった数量の製造にも取り組んでいます。</p>
-            <p class="note">※現在、店内での飲食営業は行っていません。</p>
+            <p class="note">※現在、店内でのお食事の提供は行っていません。お弁当の店頭販売は行っています。</p>
+            <p class="btn-row" style="margin-top:20px"><a class="btn btn--ghost btn--sm" href="https://ebisenka-seavans.com/kitchen/">福記美食のセントラルキッチン紹介を見る</a></p>
           </div>
         </div>
 
@@ -83,7 +86,7 @@
             <div class="diagram__node"><b>セントラルキッチン</b><span>製造拠点：福記美食</span></div>
             <div class="diagram__arrow"></div>
             <div class="diagram__out">
-              <div class="diagram__node"><b>昼食向けの弁当販売</b><span>製造した弁当を昼の時間帯に販売</span></div>
+              <div class="diagram__node"><b>お弁当の店頭販売</b><span>一般のお客様へ、福記美食の店頭で販売</span></div>
               <div class="diagram__node diagram__node--red"><b>法人向け卸販売</b><span>現在、複数の事業者様へ卸販売</span></div>
             </div>
           </div>
@@ -169,6 +172,7 @@
         <p><strong>株式会社福進発展</strong><br>〒162-0821 東京都新宿区津久戸町4-7 OSビル1F</p>
         <ul class="site-footer__links">
           <li><a href="https://fukushin-e.co.jp/" target="_blank" rel="noopener">コーポレートサイト</a></li>
+          <li><a href="https://ebisenka-seavans.com/">福記美食（製造拠点・お弁当の店頭販売）</a></li>
           <li><a href="https://ebisenka-honten.jp/" target="_blank" rel="noopener">中華料理 海老専家（店舗サイト）</a></li>
         </ul>
       </div>

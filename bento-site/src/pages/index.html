@@ -5,7 +5,12 @@
   "priority": "1.0",
   "body_class": "page-top"
 } -->
-    <section class="hero" aria-labelledby="hero-title">
+    <section class="hero hero--photo photo-band" aria-labelledby="hero-title" style="--pos: 58% 40%">
+      <picture class="photo-band__media">
+        <source media="(max-width: 640px)" srcset="/assets/img/kitchen-image-sp-490.webp" width="490" height="654">
+        <img src="/assets/img/kitchen-image-1024.webp" srcset="/assets/img/kitchen-image-640.webp 640w, /assets/img/kitchen-image-1024.webp 1024w" sizes="100vw" width="1024" height="654" alt="" fetchpriority="high">
+      </picture>
+      <span class="photo-band__credit">背景はイメージ写真です</span>
       <div class="wrap hero__grid">
         <div class="hero__copy">
           <ul class="hero__kicker" aria-label="事業内容">
