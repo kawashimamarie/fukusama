@@ -1224,10 +1224,141 @@ h1, h2, h3, h4, summary, .targets li, .lead { word-break: auto-phrase; text-wrap
 }
 
 /* ページ内目次 */
-.compartments.toc { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.compartments.toc { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .compartments.toc > li { padding: 16px 20px; display: flex; align-items: center; }
 .compartments.toc .text-link { font-size: 14px; border-bottom: 0; }
 .compartments.toc .text-link::before { content: "↓"; color: var(--red); }
 @media (max-width: 560px) { .compartments.toc { grid-template-columns: 1fr 1fr; } }
 .tray__cell--red .tray__label,
 .tray__cell--red .tray__desc { color: #fff; }
+
+/* ---------- origin（海老専家の料理写真） ---------- */
+.origin { padding-bottom: clamp(64px, 8vw, 112px); }
+.origin__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 80px);
+  align-items: end;
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+.origin__head .lead { color: var(--ink-2); font-size: clamp(15px, 1.5vw, 17px); }
+.dish-strip {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 8px;
+  padding: 8px;
+  background: var(--tray);
+  border-radius: var(--radius-l);
+}
+.dish-strip__item {
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  height: clamp(220px, 27vw, 400px);
+  background: var(--tray-2);
+}
+.dish-strip__item img { width: 100%; height: 100%; object-fit: cover; }
+.dish-strip__note { margin-top: 14px; }
+@media (max-width: 760px) {
+  .origin__head { grid-template-columns: 1fr; }
+  .dish-strip { grid-template-columns: 1fr 1fr; }
+  .dish-strip__item { height: auto; aspect-ratio: 1 / 1; }
+  .dish-strip__item--wide { grid-column: 1 / -1; aspect-ratio: 3 / 2; }
+}
+
+/* ギャラリー（弁当紹介・製造ページ） */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+  list-style: none;
+  background: var(--tray);
+  border-radius: var(--radius-l);
+}
+.gallery figure { margin: 0; }
+.gallery li { overflow: hidden; border-radius: var(--radius-m); background: var(--tray-2); }
+.gallery img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.gallery figcaption { padding: 10px 14px 12px; font-size: 12px; letter-spacing: .06em; color: rgba(251, 247, 241, .8); }
+@media (max-width: 760px) { .gallery { grid-template-columns: 1fr 1fr; } }
+
+/* 商品カード（将来の商品一覧・EC詳細へ流用） */
+.product-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+  padding: clamp(16px, 2vw, 24px);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-l);
+  box-shadow: 0 30px 60px -40px rgba(29, 25, 22, .35);
+}
+.product-card__media { position: relative; overflow: hidden; border-radius: var(--radius-m); background: var(--tray); padding: 6px; }
+.product-card__media img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; }
+.product-card__badge {
+  position: absolute; left: 18px; top: 18px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+.product-card__body { padding: clamp(4px, 1vw, 16px) clamp(4px, 1.5vw, 24px) clamp(4px, 1vw, 16px) 0; }
+.product-card h3 { font-family: var(--font-serif); font-size: clamp(22px, 2.4vw, 30px); margin-bottom: 18px; }
+.product-card .tags { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 18px 0 8px; }
+.product-card .tags li { padding: 3px 12px; border-radius: 999px; background: var(--rice); font-size: 12px; font-weight: 700; color: var(--ink-2); }
+@media (max-width: 860px) {
+  .product-card { grid-template-columns: 1fr; }
+  .product-card__body { padding: 0 6px 6px; }
+}
+
+/* セクション末尾のCTA */
+.section-cta { margin-top: clamp(36px, 5vw, 56px); }
+.record__actions { margin-top: 28px; align-items: center; gap: 20px 28px; }
+.targets__title {
+  margin-bottom: 18px;
+  font-size: 13px;
+  letter-spacing: .16em;
+  color: var(--red);
+}
+
+/* 写真のマスク表示演出（1回のみ・控えめ） */
+.js .reveal-media { clip-path: inset(0 0 100% 0 round var(--radius-m)); transition: clip-path 1s var(--ease); transition-delay: var(--d, 0s); }
+.js .reveal-media img { transform: scale(1.06); transition: transform 1.4s var(--ease); transition-delay: var(--d, 0s); }
+.js .reveal-media.is-visible { clip-path: inset(0 0 0 0 round var(--radius-m)); }
+.js .reveal-media.is-visible img { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal-media { clip-path: none; }
+  .js .reveal-media img { transform: none; }
+}
+
+/* 下層ヒーロー（写真つき） */
+.page-hero--photo .page-hero__grid { align-items: center; }
+.page-hero__photo {
+  justify-self: end;
+  width: min(100%, 460px);
+  padding: 8px;
+  background: var(--tray);
+  border-radius: var(--radius-l);
+  box-shadow: 0 40px 80px -48px rgba(29, 25, 22, .6);
+}
+.page-hero__photo img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius-m); }
+.page-hero__photo figcaption { padding: 8px 8px 2px; font-size: 12px; color: rgba(251, 247, 241, .75); letter-spacing: .06em; }
+@media (max-width: 860px) { .page-hero__photo { justify-self: stretch; width: 100%; } }
+.page-top .origin { padding-top: clamp(24px, 4vw, 56px); }
+.record__actions .text-link { margin-top: 0; }
+.tray__desc { word-break: auto-phrase; }
+@media (max-width: 420px) {
+  .hero__kicker { gap: 6px; margin-bottom: 22px; }
+  .hero__kicker li { padding: 3px 9px; font-size: 11px; letter-spacing: .04em; }
+  .tray__cell { padding: 14px; }
+  .tray__desc { font-size: 11px; }
+}
+@media (max-width: 560px) {
+  .btn-row .btn { width: 100%; }
+  .compartments.toc { gap: 6px; padding: 6px; }
+  .compartments.toc > li { padding: 10px 12px; }
+  .compartments.toc .text-link { font-size: 13px; gap: 6px; }
+}

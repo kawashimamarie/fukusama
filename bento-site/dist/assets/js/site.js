@@ -41,7 +41,7 @@
   }
 
   // スクロールに合わせた表示（控えめ・1回のみ）
-  var items = document.querySelectorAll('.reveal');
+  var items = document.querySelectorAll('.reveal, .reveal-media');
   if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     items.forEach(function (el) { el.classList.add('is-visible'); });
     return;

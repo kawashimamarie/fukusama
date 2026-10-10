@@ -65,6 +65,35 @@ def minify_css(path):
     path.write_text(css.strip() + "\n", encoding="utf-8")
 
 
+IMG_DIR = SRC / "assets" / "img"
+IMG_RE = re.compile(r'\[\[img (?P<name>[\w-]+) alt="(?P<alt>[^"]*)" sizes="(?P<sizes>[^"]*)"(?P<eager> eager)?(?: class="(?P<cls>[^"]*)")?\]\]')
+
+
+def expand_images(body):
+    """[[img 名前 alt="..." sizes="..." (eager)]] を srcset 付きの <img> に展開する。
+    名前-<幅>.webp の全サイズを srcset に入れ、width/height は最大サイズから取る。"""
+    from PIL import Image  # 画像寸法の取得にのみ使用
+
+    def repl(m):
+        pat = re.compile(re.escape(m["name"]) + r"-\d+$")
+        files = sorted((f for f in IMG_DIR.glob(m["name"] + "-*.webp") if pat.match(f.stem)),
+                       key=lambda f: int(f.stem.rsplit("-", 1)[1]))
+        if not files:
+            raise SystemExit("image not found: " + m["name"])
+        largest = files[-1]
+        w, h = Image.open(largest).size
+        srcset = ", ".join(f"/assets/img/{f.name} {int(f.stem.rsplit('-', 1)[1])}w" for f in files)
+        mid = files[min(1, len(files) - 1)]
+        attrs = [f'src="/assets/img/{mid.name}"', f'srcset="{srcset}"', f'sizes="{m["sizes"]}"',
+                 f'width="{w}"', f'height="{h}"', f'alt="{html.escape(m["alt"])}"']
+        attrs.append('fetchpriority="high"' if m["eager"] else 'loading="lazy" decoding="async"')
+        if m["cls"]:
+            attrs.append(f'class="{m["cls"]}"')
+        return "<img " + " ".join(attrs) + ">"
+
+    return IMG_RE.sub(repl, body)
+
+
 def parse_page(path):
     raw = path.read_text(encoding="utf-8")
     m = re.match(r"\s*<!--meta\s*(\{.*?\})\s*-->\s*", raw, re.S)
@@ -159,6 +188,7 @@ def build():
     urls = []
     for page in sorted((SRC / "pages").rglob("*.html")):
         meta, body = parse_page(page)
+        body = expand_images(body)
         target = out_path(meta["path"])
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(render(meta, body, layout), encoding="utf-8")
