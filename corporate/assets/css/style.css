@@ -2081,3 +2081,32 @@ body.is-loaded {
   }
 
 }
+
+/* 弁当事業の追加に伴う列数調整（2026-10） */
+@media (min-width: 1101px) {
+  .business-grid--4,
+  .content-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .site-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 721px) {
+  .content-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.note-text {
+  font-size: 0.875rem;
+  color: #5b6472;
+}
+
+.lead-panel h3 {
+  margin-top: 1.6em;
+  padding-top: 1.2em;
+  border-top: 1px solid rgba(15, 35, 60, 0.12);
+}
