@@ -66,7 +66,8 @@ def table_plan(pl):
     lines = [f"- 追加 {c['add']} 件・置き換え {c['replace']} 件・変更なし {c['unchanged']} 件（{c['bytes']:,} バイト）",
              f"- 新しいフォルダ：{len(pl['new_dirs'])} 個" + (f"（{'、'.join(pl['new_dirs'][:8])}）" if pl["new_dirs"] else ""),
              f"- 接続先の確認：目印 {pl['destination']['markers']}／公開URLとの一致 {pl['destination']['identity'] or '（空のフォルダ。公開時に確認用ファイルで確かめる）'}",
-             "- 上位・他サイトへのアクセス：" + "・".join(f"`{p}` {r}" for p, r in pl["destination"].get("escape", []))]
+             "- 上位・他サイトへのアクセス：" + "・".join(f"`{p}` {r}" for p, r in pl["destination"].get("escape", [])),
+             "- 接続情報の形（値は表示しない）：" + ("／".join(pl["destination"].get("login_hints", [])) or "-")]
     if pl["htaccess"]:
         lines.append("- 福記美食の切り替え：.htaccess の先頭に転送設定を追加（元の .htaccess はバックアップ）")
     if pl["orphans"]:

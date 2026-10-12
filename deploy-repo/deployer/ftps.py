@@ -104,20 +104,36 @@ class Ftps:
     def __init__(self, host, user, password, *, readonly=True, port=21, timeout=40, cafile=None):
         if not host or not user or not password:
             raise FtpsError("FTPS の接続情報（HOST・USER・PASSWORD）が設定されていません")
+        # 貼り付けで入りやすい前後の空白・改行を除く（値そのものは表示しない）
+        hints = []
+        if host != host.strip() or user != user.strip():
+            hints.append("HOST または USER の前後に空白・改行がありました（除いて接続）")
+        if password != password.strip("\r\n"):
+            hints.append("PASSWORD の前後に改行がありました（除いて接続）")
+        if password != password.strip():
+            hints.append("PASSWORD の前後に空白があります（そのまま使用）")
+        host, user, password = host.strip(), user.strip(), password.strip("\r\n")
+        hints.append("USER に @ を" + ("含む" if "@" in user else "含まない"))
+        self.hints = hints
         self.readonly = readonly
         ctx = ssl.create_default_context(cafile=cafile)  # 証明書とホスト名を必ず検証する
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         self.ftp = _TLS(context=ctx, timeout=timeout)
+        stage = "接続"
         try:
             self.ftp.connect(host, port)
             self.ftp.auth()                   # 認証の前に TLS へ（検証できなければここで止まり、パスワードは送らない）
-            self.ftp.login(user, password)
+            stage = "USER"
+            resp = self.ftp.sendcmd("USER " + user)
+            if resp.startswith("331"):
+                stage = "PASS"
+                self.ftp.sendcmd("PASS " + password)
             self.ftp.prot_p()                 # データ接続も暗号化
             self.ftp.set_pasv(True)
         except ssl.SSLError as e:
             raise FtpsError(f"TLS の接続またはサーバー証明書の検証に失敗しました（{e.reason or type(e).__name__}）") from None
         except ftplib.error_perm as e:
-            raise FtpsError(f"ログインできませんでした（{str(e)[:3]}）") from None
+            raise FtpsError(f"ログインできませんでした（{str(e)[:3]}・{stage} の段階で拒否）［" + "／".join(hints) + "］") from None
         except OSError as e:
             raise FtpsError(f"FTPS サーバーに接続できませんでした（{type(e).__name__}）") from None
         self.mlsd_ok = True

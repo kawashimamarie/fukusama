@@ -82,7 +82,7 @@ def _names(ftp, path):
 
 
 def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
-    info = {}
+    info = {"login_hints": list(getattr(ftp, "hints", []))}
     pwd = ftp.pwd()
     if pwd != "/":
         raise Stop(f"ログイン直後の場所が公開フォルダではありません（{pwd!r}）。接続先ディレクトリを限定した FTP アカウントが必要です")

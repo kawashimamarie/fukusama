@@ -310,6 +310,19 @@ class DestinationTests(unittest.TestCase):
         finally:
             r.close()
 
+    def test_login_failure_reports_stage_without_values(self):
+        r = Rig("ebisenka")
+        try:
+            with self.assertRaises(FtpsError) as cm:
+                Ftps("localhost", r.ftp.user + " \n", "wrong-secret-value\n", port=r.ftp.port, cafile=str(CA / "ca.pem"))
+            msg = str(cm.exception)
+            self.assertIn("PASS の段階", msg)
+            self.assertIn("前後に空白・改行", msg)
+            self.assertNotIn("wrong-secret-value", msg)
+            self.assertNotIn(r.ftp.user, msg)
+        finally:
+            r.close()
+
     def test_paths_and_readonly(self):
         for bad in ("../x", "/etc/passwd", "a/../b", "a b", "a//b", ""):
             with self.assertRaises(FtpsError):
