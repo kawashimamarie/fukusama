@@ -29,6 +29,12 @@ on:
         type: string
         default: ''
 
+# 公開の仕組み（deployer/SHA256SUMS）のハッシュ。ワークフローに固定しておくことで、deployer/ だけを
+# 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
+# fukusama の scripts/deploy_repo_sums.py が更新する
+env:
+  DEPLOYER_SUMS_SHA256: 50e0b970d95e8a3636cce497b6c40fc1124bbbff50309474503896ff97b5892a
+
 permissions: {}
 
 jobs:
@@ -47,7 +53,9 @@ jobs:
         with:
           persist-credentials: false
       - name: 公開の仕組みの照合
-        run: sha256sum --strict -c deployer/SHA256SUMS
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
       - id: r
         name: 公開するコミットとサイトを決める
         run: python3 -m deployer.gh resolve
@@ -81,7 +89,7 @@ jobs:
           name: build-${{ github.run_id }}
           path: out/
           include-hidden-files: true    # ebisenka.jp の .htaccess
-          retention-days: 14
+          retention-days: 1             # この実行の中でだけ使う（保存容量 500MB の節約）
 
   deploy:
     needs: [resolve, build]
@@ -101,7 +109,9 @@ jobs:
         with:
           persist-credentials: false
       - name: 公開の仕組みの照合
-        run: sha256sum --strict -c deployer/SHA256SUMS
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: build-${{ github.run_id }}
@@ -123,12 +133,15 @@ jobs:
           FTPS_EBISENKA_HOST: ${{ matrix.target.prefix == 'FTPS_EBISENKA' && secrets.FTPS_EBISENKA_HOST || '' }}
           FTPS_EBISENKA_USER: ${{ matrix.target.prefix == 'FTPS_EBISENKA' && secrets.FTPS_EBISENKA_USER || '' }}
           FTPS_EBISENKA_PASSWORD: ${{ matrix.target.prefix == 'FTPS_EBISENKA' && secrets.FTPS_EBISENKA_PASSWORD || '' }}
+          FTPS_EBISENKA_PARENT_ABS: ${{ matrix.target.prefix == 'FTPS_EBISENKA' && secrets.FTPS_EBISENKA_PARENT_ABS || '' }}
           FTPS_FUKUKI_HOST: ${{ matrix.target.prefix == 'FTPS_FUKUKI' && secrets.FTPS_FUKUKI_HOST || '' }}
           FTPS_FUKUKI_USER: ${{ matrix.target.prefix == 'FTPS_FUKUKI' && secrets.FTPS_FUKUKI_USER || '' }}
           FTPS_FUKUKI_PASSWORD: ${{ matrix.target.prefix == 'FTPS_FUKUKI' && secrets.FTPS_FUKUKI_PASSWORD || '' }}
+          FTPS_FUKUKI_PARENT_ABS: ${{ matrix.target.prefix == 'FTPS_FUKUKI' && secrets.FTPS_FUKUKI_PARENT_ABS || '' }}
           FTPS_CORPORATE_HOST: ${{ matrix.target.prefix == 'FTPS_CORPORATE' && secrets.FTPS_CORPORATE_HOST || '' }}
           FTPS_CORPORATE_USER: ${{ matrix.target.prefix == 'FTPS_CORPORATE' && secrets.FTPS_CORPORATE_USER || '' }}
           FTPS_CORPORATE_PASSWORD: ${{ matrix.target.prefix == 'FTPS_CORPORATE' && secrets.FTPS_CORPORATE_PASSWORD || '' }}
+          FTPS_CORPORATE_PARENT_ABS: ${{ matrix.target.prefix == 'FTPS_CORPORATE' && secrets.FTPS_CORPORATE_PARENT_ABS || '' }}
       # 事前バックアップを保存し、保存先から取り出し直したものを公開に使う（保存先から戻せることを毎回確かめる）
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.prepare.outputs.decision == 'apply'

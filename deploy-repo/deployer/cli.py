@@ -102,7 +102,8 @@ def cmd_prepare(a):
         build = core.load_build(site, a.dist)
         ftp = connect(site, True, extra)
         try:
-            pl = core.plan(ftp, site, a.dist, build, state, work / "backup", token, base_url)
+            escapes = [x for x in os.environ.get(site.secret_prefix + "_PARENT_ABS", "").split(";") if x.strip()]
+            pl = core.plan(ftp, site, a.dist, build, state, work / "backup", token, base_url, escapes)
         finally:
             ftp.close()
     except (core.Stop, FtpsError) as e:

@@ -386,6 +386,19 @@ class FukukiSwitchTests(unittest.TestCase):
         finally:
             r.close()
 
+    def test_cache_plugin_rules_stop_the_switch(self):
+        r = Rig("fukuki", wordpress=True)
+        try:
+            self.make_wp(r.root)
+            (r.root / ".htaccess").write_text("# BEGIN WPSuperCache\nRewriteEngine On\n# END WPSuperCache\n" + self.WP_HTACCESS)
+            before = H.tree(r.root)
+            d, _, _ = r.run("publish", confirm="ebisenka-seavans.com")
+            self.assertEqual(d["status"], "aborted")
+            self.assertIn("キャッシュ", d["reason"])
+            self.assertEqual(H.tree(r.root), before)
+        finally:
+            r.close()
+
     def test_restore_refuses_when_newer_publish_exists(self):
         r = Rig("fukuki", wordpress=True)
         try:

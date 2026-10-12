@@ -24,6 +24,12 @@ on:
         type: string
         default: ''
 
+# 公開の仕組み（deployer/SHA256SUMS）のハッシュ。ワークフローに固定しておくことで、deployer/ だけを
+# 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
+# fukusama の scripts/deploy_repo_sums.py が更新する
+env:
+  DEPLOYER_SUMS_SHA256: 50e0b970d95e8a3636cce497b6c40fc1124bbbff50309474503896ff97b5892a
+
 permissions: {}
 
 concurrency:
@@ -42,7 +48,9 @@ jobs:
         with:
           persist-credentials: false
       - name: 公開の仕組みの照合
-        run: sha256sum --strict -c deployer/SHA256SUMS
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
       - name: 入力の確認
         run: |
           [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "run_id は数字だけで入力してください"; exit 1; }

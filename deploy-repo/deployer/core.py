@@ -24,6 +24,10 @@ from .ftps import FtpsError, check_path, parent_dirs
 ASSET_EXT = {".css", ".js", ".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff2", ".pdf", ".mp4"}
 
 
+# 切り替えの前に止める、ページキャッシュのプラグインの .htaccess の目印
+CACHE_PLUGIN_MARKERS = ("WPSuperCache", "W3TC", "LSCACHE", "WP Rocket", "WP-Rocket", "WpFastestCache", "BEGIN Cache Enabler")
+
+
 class Stop(Exception):
     """安全のため書き込まずに止める（または、書き込み後なら自動で元に戻す）"""
 
@@ -75,7 +79,7 @@ def _names(ftp, path):
     return sorted(n for n in (posixpath.basename(x.rstrip("/")) for x in ftp.ftp.nlst(path)) if n not in (".", ".."))
 
 
-def check_destination(ftp, site, base_url, token):
+def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
     info = {}
     pwd = ftp.pwd()
     if pwd != "/":
@@ -99,14 +103,18 @@ def check_destination(ftp, site, base_url, token):
     info["markers"] = group or "空のフォルダ（初回公開）"
     info["empty"] = not root
     # 外へ出られないこと（ルートより上が見えない）
+    # 外へ出られないこと：相対（..）・絶対パス・ホーム（~）・お名前.com の公開フォルダの絶対パス（任意の Secret）。
+    # 拒否されるか、ルートとまったく同じ一覧なら合格（Nexus の確認と同じ基準）
     here = _names(ftp, ".")
-    for up in ("..", "../.."):
+    escapes = ["..", "../..", "/..", "/", "/public_html", "~", "~/public_html"] + list(extra_escape_paths)
+    for up in escapes:
         try:
             there = _names(ftp, up)
         except Exception:
             continue  # 拒否される＝外へ出られない
         if there != here:
             raise Stop("公開フォルダの外が見えます（接続先ディレクトリが限定されていません）")
+    info["escape_checked"] = len(escapes)
     # 公開中のサイトそのものか（FTPS で読んだ中身と公開URLの中身が同じ）
     info["identity"] = None
     for f in site.identity_files:
@@ -129,10 +137,10 @@ def check_destination(ftp, site, base_url, token):
 
 
 # ---------------------------------------------------------------- 計画（読み取り）と事前バックアップ
-def plan(ftp, site, dist, build_files, state, backup_dir, token, base_url):
+def plan(ftp, site, dist, build_files, state, backup_dir, token, base_url, extra_escape_paths=()):
     backup_dir = Path(backup_dir)
     (backup_dir / "files").mkdir(parents=True, exist_ok=True)
-    dest = check_destination(ftp, site, base_url, token)
+    dest = check_destination(ftp, site, base_url, token, extra_escape_paths)
 
     listings = {}
 
@@ -190,6 +198,11 @@ def plan(ftp, site, dist, build_files, state, backup_dir, token, base_url):
     if site.htaccess_block:
         cur = ftp.get(".htaccess")
         cur_text = (cur or b"").decode("utf-8")
+        found = [m for m in CACHE_PLUGIN_MARKERS if m in cur_text]
+        if found:
+            raise Stop("WordPress の .htaccess に、ページキャッシュのプラグインの設定があります（"
+                       + "・".join(found) + "）。古いトップページが表示され続けるおそれがあるため、"
+                       "プラグインを停止して設定を外してから実行してください")
         if site.htaccess_block in cur_text:
             pass
         elif "リニューアル版への切り替え（ここから）" in cur_text:
