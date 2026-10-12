@@ -114,6 +114,10 @@ class Ftps:
             hints.append("PASSWORD の前後に空白があります（そのまま使用）")
         host, user, password = host.strip(), user.strip(), password.strip("\r\n")
         hints.append("USER に @ を" + ("含む" if "@" in user else "含まない"))
+        if not user.isascii():
+            hints.append("USER に全角などの半角英数字以外の文字がある")
+        if not password.isascii():
+            hints.append("PASSWORD に全角などの半角英数字以外の文字がある")
         self.hints = hints
         self.readonly = readonly
         ctx = ssl.create_default_context(cafile=cafile)  # 証明書とホスト名を必ず検証する

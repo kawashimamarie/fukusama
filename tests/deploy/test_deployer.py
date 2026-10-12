@@ -314,11 +314,12 @@ class DestinationTests(unittest.TestCase):
         r = Rig("ebisenka")
         try:
             with self.assertRaises(FtpsError) as cm:
-                Ftps("localhost", r.ftp.user + " \n", "wrong-secret-value\n", port=r.ftp.port, cafile=str(CA / "ca.pem"))
+                Ftps("localhost", r.ftp.user + " \n", "wrong-secret-ｖalue\n", port=r.ftp.port, cafile=str(CA / "ca.pem"))
             msg = str(cm.exception)
             self.assertIn("PASS の段階", msg)
             self.assertIn("前後に空白・改行", msg)
-            self.assertNotIn("wrong-secret-value", msg)
+            self.assertIn("PASSWORD に全角", msg)
+            self.assertNotIn("wrong-secret-ｖalue", msg)
             self.assertNotIn(r.ftp.user, msg)
         finally:
             r.close()
