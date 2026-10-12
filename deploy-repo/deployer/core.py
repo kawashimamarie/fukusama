@@ -107,14 +107,20 @@ def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
     # 拒否されるか、ルートとまったく同じ一覧なら合格（Nexus の確認と同じ基準）
     here = _names(ftp, ".")
     escapes = ["..", "../..", "/..", "/", "/public_html", "~", "~/public_html"] + list(extra_escape_paths)
+    results = []
     for up in escapes:
+        label = up if up in ("..", "../..", "/..", "/", "/public_html", "~", "~/public_html") else "（Secret の絶対パス）"
         try:
             there = _names(ftp, up)
         except Exception:
-            continue  # 拒否される＝外へ出られない
+            results.append([label, "拒否"])  # 拒否される＝外へ出られない
+            continue
         if there != here:
-            raise Stop("公開フォルダの外が見えます（接続先ディレクトリが限定されていません）")
-    info["escape_checked"] = len(escapes)
+            results.append([label, "外が見える"])
+            info["escape"] = results
+            raise Stop(f"公開フォルダの外が見えます（{label}）。接続先ディレクトリが限定されていません")
+        results.append([label, "ルートと同じ（外へ出られない）"])
+    info["escape"] = results
     # 公開中のサイトそのものか（FTPS で読んだ中身と公開URLの中身が同じ）
     info["identity"] = None
     for f in site.identity_files:

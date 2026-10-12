@@ -240,6 +240,35 @@ class EbisenkaTests(unittest.TestCase):
         self.assertEqual(H.tree(self.r.root), {})
 
 
+class CheckModeTests(unittest.TestCase):
+    def test_check_reports_isolation_and_backup_roundtrip(self):
+        r = Rig("corporate")
+        try:
+            base = H.tmpdir() / "base"
+            subprocess.run(["git", "-C", str(ROOT), "archive", "a6ba69e", "corporate"], check=True,
+                           stdout=open(base.with_suffix(".tar"), "wb"))
+            shutil.unpack_archive(str(base.with_suffix(".tar")), str(base))
+            H.copytree(base / "corporate", r.root)
+            before = H.tree(r.root)
+            d, rc, _ = r.run("check")
+            self.assertEqual(d["status"], "checked")
+            self.assertEqual(H.tree(r.root), before)                     # 確認のみは書き込まない
+            work = r.dir / f"work{r.n}"
+            pl = json.loads((work / "backup/plan.json").read_text())
+            esc = dict(pl["destination"]["escape"])
+            self.assertEqual(set(esc), {"..", "../..", "/..", "/", "/public_html", "~", "~/public_html"})
+            self.assertTrue(all(v in ("拒否", "ルートと同じ（外へ出られない）") for v in esc.values()))
+            self.assertEqual(len(pl["backup"]["files"]), 5)               # 上書きされる5ファイルの公開前の中身
+            vb = r.dir / "roundtrip"
+            shutil.copytree(work / "backup", vb)                          # 保存 → 取り出し
+            with env(**r.envs()):
+                self.assertEqual(cli.main(["verify-backup", "--site", "corporate", "--backup", str(vb), "--work", str(work)]), 0)
+                next((vb / "files").rglob("*.html")).write_bytes(b"broken")
+                self.assertEqual(cli.main(["verify-backup", "--site", "corporate", "--backup", str(vb), "--work", str(work)]), 1)
+        finally:
+            r.close()
+
+
 class DestinationTests(unittest.TestCase):
     def test_wrong_account_scope_stops(self):
         r = Rig("corporate")

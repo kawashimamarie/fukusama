@@ -28,7 +28,7 @@ on:
 # 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
 # fukusama の scripts/deploy_repo_sums.py が更新する
 env:
-  DEPLOYER_SUMS_SHA256: 50e0b970d95e8a3636cce497b6c40fc1124bbbff50309474503896ff97b5892a
+  DEPLOYER_SUMS_SHA256: 381ebc2edbfb6f0adae6c4fce735ac8498a772e1b2352f96375ce22336b4422a
 
 permissions: {}
 

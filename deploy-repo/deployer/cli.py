@@ -65,7 +65,8 @@ def table_plan(pl):
     c = pl["counts"]
     lines = [f"- 追加 {c['add']} 件・置き換え {c['replace']} 件・変更なし {c['unchanged']} 件（{c['bytes']:,} バイト）",
              f"- 新しいフォルダ：{len(pl['new_dirs'])} 個" + (f"（{'、'.join(pl['new_dirs'][:8])}）" if pl["new_dirs"] else ""),
-             f"- 接続先の確認：目印 {pl['destination']['markers']}／公開URLとの一致 {pl['destination']['identity'] or '（空のフォルダ。公開時に確認用ファイルで確かめる）'}"]
+             f"- 接続先の確認：目印 {pl['destination']['markers']}／公開URLとの一致 {pl['destination']['identity'] or '（空のフォルダ。公開時に確認用ファイルで確かめる）'}",
+             "- 上位・他サイトへのアクセス：" + "・".join(f"`{p}` {r}" for p, r in pl["destination"].get("escape", []))]
     if pl["htaccess"]:
         lines.append("- 福記美食の切り替え：.htaccess の先頭に転送設定を追加（元の .htaccess はバックアップ）")
     if pl["orphans"]:
@@ -257,10 +258,31 @@ def cmd_restore(a):
     return 0
 
 
+def cmd_verify_backup(a):
+    """保存先から取り出したバックアップが、確認時の計画・中身と一致するか（本番に接続しない）"""
+    site = C.SITES[a.site]
+    vb, work = Path(a.backup), Path(a.work)
+    head = [f"## {site.domain}：バックアップの保存と取り出しの確認（{now()}）"]
+    try:
+        pl = json.loads((vb / "plan.json").read_text())
+        mine = json.loads((work / "backup" / "plan.json").read_text())
+        if pl != mine:
+            raise core.Stop("取り出した計画が、確認時の計画と一致しません")
+        core.verify_backup(pl, vb, site)
+    except (core.Stop, OSError, ValueError) as e:
+        summary(head + [f"**不合格**：{e}"])
+        return 1
+    n = len(pl["backup"]["files"]) + (1 if pl["backup"]["htaccess"] else 0)
+    size = sum(f.stat().st_size for f in (vb / "files").rglob("*") if f.is_file())
+    summary(head + [f"**合格**：公開前の中身 {n} ファイル（{size:,} バイト）と計画を保存し、取り出して SHA-256 で照合しました"
+                    + ("（置き換えるファイルがないため、保存したのは計画だけ）" if n == 0 else "")])
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="deployer")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("prepare", "apply", "restore"):
+    for name in ("prepare", "apply", "restore", "verify-backup"):
         p = sub.add_parser(name)
         p.add_argument("--site", required=True, choices=sorted(C.SITES))
         p.add_argument("--test-cafile")
@@ -279,11 +301,15 @@ def main(argv=None):
         if name == "apply":
             p.add_argument("--backup", required=True)
             p.add_argument("--cache-wait", type=int, default=15)
+        if name == "verify-backup":
+            p.add_argument("--backup", required=True)
+            p.add_argument("--work", required=True)
         if name == "restore":
             p.add_argument("--backup", required=True)
             p.add_argument("--confirm", default="")
     a = ap.parse_args(argv)
-    return {"prepare": cmd_prepare, "apply": cmd_apply, "restore": cmd_restore}[a.cmd](a)
+    return {"prepare": cmd_prepare, "apply": cmd_apply, "restore": cmd_restore,
+            "verify-backup": cmd_verify_backup}[a.cmd](a)
 
 
 if __name__ == "__main__":

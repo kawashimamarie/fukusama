@@ -33,7 +33,7 @@ on:
 # 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
 # fukusama の scripts/deploy_repo_sums.py が更新する
 env:
-  DEPLOYER_SUMS_SHA256: 50e0b970d95e8a3636cce497b6c40fc1124bbbff50309474503896ff97b5892a
+  DEPLOYER_SUMS_SHA256: 381ebc2edbfb6f0adae6c4fce735ac8498a772e1b2352f96375ce22336b4422a
 
 permissions: {}
 
@@ -143,19 +143,23 @@ jobs:
           FTPS_CORPORATE_PASSWORD: ${{ matrix.target.prefix == 'FTPS_CORPORATE' && secrets.FTPS_CORPORATE_PASSWORD || '' }}
           FTPS_CORPORATE_PARENT_ABS: ${{ matrix.target.prefix == 'FTPS_CORPORATE' && secrets.FTPS_CORPORATE_PARENT_ABS || '' }}
       # 事前バックアップを保存し、保存先から取り出し直したものを公開に使う（保存先から戻せることを毎回確かめる）
+      # 確認のみ（check）でも保存と取り出しを行い、公開の前にバックアップが保管できることを確かめる（保存は14日）
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: steps.prepare.outputs.decision == 'apply'
+        if: steps.prepare.outcome == 'success' && (steps.prepare.outputs.decision == 'apply' || needs.resolve.outputs.mode == 'check')
         with:
           name: backup-${{ matrix.target.site }}-${{ github.run_id }}
           path: work/backup/
           include-hidden-files: true
           if-no-files-found: error
-          retention-days: 90
+          retention-days: ${{ steps.prepare.outputs.decision == 'apply' && 90 || 14 }}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        if: steps.prepare.outputs.decision == 'apply'
+        if: steps.prepare.outcome == 'success' && (steps.prepare.outputs.decision == 'apply' || needs.resolve.outputs.mode == 'check')
         with:
           name: backup-${{ matrix.target.site }}-${{ github.run_id }}
           path: verified-backup/
+      - name: バックアップの保存と取り出しの確認（確認のみのとき・本番に接続しない）
+        if: steps.prepare.outcome == 'success' && needs.resolve.outputs.mode == 'check'
+        run: python3 -m deployer verify-backup --site "${{ matrix.target.site }}" --backup verified-backup --work work
       - id: head
         name: 公開するコミットが今も main の最新か（古い実行で新しい内容を上書きしない）
         if: steps.prepare.outputs.decision == 'apply'
