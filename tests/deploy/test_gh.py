@@ -93,7 +93,11 @@ class GhTests(unittest.TestCase):
         (sd / "ebisenka.json").write_text(json.dumps({"handled_sha": "s2", "last_status": "published"}))
         (sd / "fukuki.json").write_text(json.dumps({"handled_sha": "s1", "last_status": "published"}))
         out = self.d / "out.txt"
-        os.environ.update(GITHUB_OUTPUT=str(out), GITHUB_REPOSITORY="o/r", EVENT="schedule")
+        os.environ.update(GITHUB_OUTPUT=str(out), GITHUB_REPOSITORY="o/r", EVENT="schedule", AUTO_SITES="")
+        gh.resolve()
+        sites = json.loads([l for l in out.read_text().splitlines() if l.startswith("sites=")][-1][6:])
+        self.assertEqual(sites, [])                                                 # 自動公開が無効なら定期の確認は接続しない
+        os.environ["AUTO_SITES"] = "ebisenka,fukuki,corporate"
         gh.resolve()
         sites = json.loads([l for l in out.read_text().splitlines() if l.startswith("sites=")][-1][6:])
         self.assertEqual([s["site"] for s in sites], ["fukuki", "corporate"])     # ebisenka は処理済み

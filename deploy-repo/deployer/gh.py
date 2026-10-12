@@ -100,7 +100,12 @@ def resolve():
             lines.append(f"- CI（{CI_WORKFLOW}）が成功していないため、今回は何もしません（{ci}）")
         else:
             sites = []
+            auto = {x.strip() for x in os.environ.get("AUTO_SITES", "").split(",") if x.strip()}
+            if not auto:
+                lines.append("- 自動公開が有効なサイトがないため、定期の確認では接続しません（変数 AUTO_PUBLISH_SITES が空）")
             for s in C.SITES:
+                if s not in auto:
+                    continue
                 stt = states[s] or {}
                 if stt.get("handled_sha") == sha and not (stt.get("last_status") == "aborted"
                                                           and stt.get("attempts", 0) < MAX_ABORT_RETRY):
