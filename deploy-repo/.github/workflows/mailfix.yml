@@ -1,0 +1,71 @@
+# コーポレートの mail.php の先頭の BOM（3バイト）だけを除く専用の修正（2026-10-12 ご本人の承認）。
+#   mode=check：本番に書き込まない（取得・差分の照合・構文チェック・バックアップの照合だけ）
+#   mode=apply：すべて合格したときだけ mail.php を置き換え、公開URLで構文エラーが消えたかを確かめる（送信はしない）。
+#               問題があれば自動で修正前に戻す
+#   mode=restore：先頭に BOM を付け直す（修正前に戻す）
+# 触れるのは mail.php とその一時ファイルだけ。中身（全文・抜粋・ハッシュ）はログ・要約・成果物に出さない。成果物は作らない。
+name: mail.php の修正（コーポレート）
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [check, apply, restore]
+        default: check
+      confirm:
+        description: apply・restore のときはドメイン名（fukushin-e.co.jp）
+        type: string
+        default: ''
+
+env:
+  DEPLOYER_SUMS_SHA256: 31fbf016af72eb7cfddf0dff40c95735f9679adfc9e17ba150ecf6c3b927727c
+
+permissions: {}
+
+concurrency:
+  group: deploy-corporate     # 公開・復元と同じ組：同時に動かない
+  cancel-in-progress: false
+
+jobs:
+  mailfix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 公開の仕組みの照合
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
+      - name: 最新の main・CI・同期の確認
+        run: |
+          python3 - <<'PY'
+          import base64, os, sys
+          sys.path.insert(0, ".")
+          from deployer import gh
+          tok = os.environ["GH_TOKEN"]
+          sha = gh.main_head(tok)
+          ci = gh.ci_state(sha, tok)
+          st, j = gh.api(f"/repos/{gh.SOURCE_REPO}/contents/deploy-repo/deployer/SHA256SUMS?ref={sha}", tok)
+          synced = st == 200 and base64.b64decode(j["content"]) == open("deployer/SHA256SUMS", "rb").read()
+          print(f"fukusama main：{sha[:7]}・CI：{ci}・公開の仕組みの同期：{'一致' if synced else '不一致'}")
+          if ci != "success" or not synced:
+              sys.exit("最新の main の CI が合格していないか、公開の仕組みが同期していません（何もしません）")
+          PY
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: PHP の版
+        run: php -v | head -n 1
+      - name: mail.php の修正（${{ inputs.mode }}）
+        run: python3 -m deployer.mailfix --mode "$MODE" --confirm "$CONFIRM"
+        env:
+          MODE: ${{ inputs.mode }}
+          CONFIRM: ${{ inputs.confirm }}
+          FTPS_CORPORATE_HOST: ${{ secrets.FTPS_CORPORATE_HOST }}
+          FTPS_CORPORATE_USER: ${{ secrets.FTPS_CORPORATE_USER }}
+          FTPS_CORPORATE_PASSWORD: ${{ secrets.FTPS_CORPORATE_PASSWORD }}
+          FTPS_CORPORATE_PARENT_ABS: ${{ secrets.FTPS_CORPORATE_PARENT_ABS }}

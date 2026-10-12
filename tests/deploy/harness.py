@@ -136,6 +136,12 @@ class WebServer:
                             return self._send(403 if origin not in allowed_origins else 303, b"")
                         if srv.wordpress and f.name == "index.php":
                             return self._send(200, b"<html>WordPress page nonce=" + secrets.token_hex(8).encode() + b"</html>")
+                        if f.name.startswith("mail") and shutil.which("php"):
+                            # 既存の mail.php の模擬：本番と同じくエラーを画面に出す PHP で実行（GET のみ・送信関数は無効）
+                            r = subprocess.run(["php", "-d", "display_errors=1", "-d", "html_errors=0",
+                                                "-d", "disable_functions=mail,mb_send_mail", str(f)],
+                                               capture_output=True, env={"REQUEST_METHOD": self.command, "PATH": os.environ.get("PATH", "")})
+                            return self._send(200, r.stdout)
                         return self._send(200, b"")
                     return self._send(200, f.read_bytes())
                 if srv.wordpress and (srv.root / "index.php").is_file():
