@@ -40,7 +40,7 @@ on:
 # 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
 # fukusama の scripts/deploy_repo_sums.py が更新する
 env:
-  DEPLOYER_SUMS_SHA256: e0f9a56673c810843eb7701bafeab59223f6915f6bab4585e17dd482aad006a1
+  DEPLOYER_SUMS_SHA256: c74197995ae8c8f4e6514e5226d24953afa4db91c61ca54c6c8715e0fa31e630
 
 permissions: {}
 
@@ -214,6 +214,7 @@ jobs:
           git config --global user.name "fukushin-deploy"
           git config --global user.email "fukushin-deploy@users.noreply.github.com"
           url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          saved=false
           for i in 1 2 3 4 5; do
             rm -rf state-branch
             if git ls-remote --exit-code "$url" refs/heads/deploy-state >/dev/null; then
@@ -224,11 +225,15 @@ jobs:
             export NOW=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S')
             STATE_DIR=state-branch/state python3 -m deployer.gh record
             git -C state-branch add state
-            git -C state-branch diff --cached --quiet && break
+            if git -C state-branch diff --cached --quiet; then saved=true; break; fi
             git -C state-branch commit --quiet -m "record: ${{ matrix.target.site }} run ${GITHUB_RUN_ID}"
-            git -C state-branch push --quiet "$url" HEAD:deploy-state && break
+            if git -C state-branch push --quiet "$url" HEAD:deploy-state; then saved=true; break; fi
             sleep $((i * 3))   # ほかのサイトの記録と同時になったときは、取り直して再実行
           done
+          if [ "$saved" != true ]; then
+            echo "**記録を保存できませんでした**（deploy-state への書き込みが5回とも失敗）" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1             # 記録の失敗を見えるようにする（通知のジョブが「記録の前に止まった実行」として知らせる）
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ needs.resolve.outputs.sha }}
@@ -261,4 +266,6 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MODE: ${{ needs.resolve.outputs.mode }}
           SITES: ${{ needs.resolve.outputs.sites }}
-          DEPLOY_RESULT: ${{ (needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.deploy.result == 'cancelled') && 'failure' || needs.deploy.result }}
+          SHA: ${{ needs.resolve.outputs.sha }}
+          # 待ちの列で新しい実行に置き換わった（cancelled）ものは失敗として知らせない
+          DEPLOY_RESULT: ${{ (needs.build.result == 'failure' || needs.deploy.result == 'failure') && 'failure' || needs.deploy.result }}

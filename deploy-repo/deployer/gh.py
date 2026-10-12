@@ -231,13 +231,17 @@ def _clean(text, limit=600):
 def notify_kind(st, run_url, deploy_result, mode):
     """この実行で、このサイトに通知が要るか：(種類, 重複を防ぐ鍵) / 解消なら ("resolved", None) / 何もなし None"""
     if st.get("last_run") != run_url:
-        return ("run-failed", f"run-failed:{run_url}") if deploy_result == "failure" else None
+        # 記録の前に止まった実行：同じコミットでは1回だけ（毎時・CI の知らせのたびに増やさない）
+        return ("run-failed", f"run-failed:{os.environ.get('SHA') or run_url}") if deploy_result == "failure" else None
     status = st.get("last_status")
     sha = st.get("handled_sha", "")
+    if st.get("halted"):
+        # 停止中は、公開が通っても通知を閉じない（解除は「自動公開の再開」だけ）
+        if status == "restore-failed":
+            return ("restore-failed", f"restore-failed:{run_url}")
+        return ("halted", "halted:" + st["halted"].get("since", ""))
     if status in RESOLVED:
         return ("resolved", None)
-    if status == "halted":
-        return ("halted", "halted:" + (st.get("halted") or {}).get("since", ""))   # 停止の間は1回だけ
     if status == "aborted":
         if mode == "auto" and st.get("attempts", 0) < MAX_ABORT_RETRY:
             return None                     # 自動の再試行の途中は知らせない

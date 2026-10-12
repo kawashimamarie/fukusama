@@ -260,6 +260,33 @@ class NotifyTests(unittest.TestCase):
         gh.notify()
         self.assertEqual(self.issues[1]["comments"], [])
 
+    def test_halted_site_keeps_its_issue_open_even_after_a_publish(self):
+        self.states = {"ebisenka": {"last_run": "run1", "last_status": "restore-failed", "handled_sha": "a" * 40,
+                                    "halted": {"since": "t1", "reason": "戻せない"}}}
+        gh.notify()
+        self.assertIn("元に戻せませんでした", self.issues[1]["title"])
+        self.states["ebisenka"].update(last_run="run2", last_status="published", handled_sha="b" * 40)
+        os.environ["RUN_URL"] = "run2"
+        gh.notify()
+        self.assertEqual(self.issues[1]["state"], "open")                         # 停止中は閉じない
+        self.assertIn("停止中", self.issues[1]["comments"][0])
+        self.states["ebisenka"].update(last_run="run3", last_status="restore-failed")
+        os.environ["RUN_URL"] = "run3"
+        gh.notify()                                                                  # 別の実行の復元失敗は、改めて知らせる
+        self.assertEqual(len(self.issues[1]["comments"]), 2)
+
+    def test_runs_failing_before_record_are_reported_once_per_commit(self):
+        self.states = {"corporate": {"last_run": "old", "last_status": "published"}}
+        os.environ.update(SITES=json.dumps([{"site": "corporate"}]), DEPLOY_RESULT="failure", SHA="d" * 40)
+        for run in ("r1", "r2", "r3"):
+            os.environ["RUN_URL"] = run
+            gh.notify()
+        self.assertEqual((len(self.issues), self.issues[1]["comments"]), (1, []))
+        os.environ["DEPLOY_RESULT"] = "cancelled"                                   # 待ちの列で置き換わった
+        os.environ.update(RUN_URL="r4", SHA="e" * 40)
+        gh.notify()
+        self.assertEqual(self.issues[1]["comments"], [])
+
     def test_selftest_flow_passes_against_fake_issue_api(self):
         from deployer import notify_selftest, config as C
         self.addCleanup(C.SITES.pop, "selftest", None)

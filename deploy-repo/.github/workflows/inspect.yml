@@ -12,7 +12,7 @@ on:
         options: [corporate/mail.php]
 
 env:
-  DEPLOYER_SUMS_SHA256: e0f9a56673c810843eb7701bafeab59223f6915f6bab4585e17dd482aad006a1
+  DEPLOYER_SUMS_SHA256: c74197995ae8c8f4e6514e5226d24953afa4db91c61ca54c6c8715e0fa31e630
 
 permissions: {}
 

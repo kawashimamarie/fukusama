@@ -29,7 +29,7 @@ on:
 # 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
 # fukusama の scripts/deploy_repo_sums.py が更新する
 env:
-  DEPLOYER_SUMS_SHA256: e0f9a56673c810843eb7701bafeab59223f6915f6bab4585e17dd482aad006a1
+  DEPLOYER_SUMS_SHA256: c74197995ae8c8f4e6514e5226d24953afa4db91c61ca54c6c8715e0fa31e630
 
 permissions: {}
 
@@ -40,6 +40,8 @@ concurrency:
 jobs:
   restore:
     runs-on: ubuntu-24.04
+    outputs:
+      status: ${{ steps.restore.outputs.status }}
     timeout-minutes: 20
     permissions:
       contents: write     # 復元の記録（deploy-state ブランチ）
@@ -97,17 +99,28 @@ jobs:
           git config --global user.name "fukushin-deploy"
           git config --global user.email "fukushin-deploy@users.noreply.github.com"
           url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if git ls-remote --exit-code "$url" refs/heads/deploy-state >/dev/null; then
-            git clone --quiet --depth 1 --branch deploy-state "$url" state-branch
-          else
-            git init --quiet state-branch && git -C state-branch checkout --quiet -b deploy-state
-          fi
           mkdir -p "results/${{ inputs.site }}"
           python3 -c 'import json,os,sys; json.dump({"status": os.environ["ST"], "reason": ("手動の復元（実行 " + os.environ["RID"] + " の事前バックアップ）" + ("に失敗：" + os.environ.get("WHY", "") if os.environ["ST"] == "restore-failed" else ""))}, sys.stdout, ensure_ascii=False)' > "results/${{ inputs.site }}/result.json"
           export SHA=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/kawashimamarie/fukusama/commits/main | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')
           export NOW=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S')
-          STATE_DIR=state-branch/state MODE=restore python3 -m deployer.gh record
-          cd state-branch && git add state && git commit --quiet -m "record: restore run ${GITHUB_RUN_ID}" && git push --quiet "$url" HEAD:deploy-state
+          saved=false
+          for i in 1 2 3 4 5; do     # ほかのサイトの記録と同時になったときは、取り直して再実行
+            rm -rf state-branch
+            if git ls-remote --exit-code "$url" refs/heads/deploy-state >/dev/null; then
+              git clone --quiet --depth 1 --branch deploy-state "$url" state-branch
+            else
+              git init --quiet state-branch && git -C state-branch checkout --quiet -b deploy-state
+            fi
+            STATE_DIR=state-branch/state MODE=restore python3 -m deployer.gh record
+            git -C state-branch add state
+            git -C state-branch diff --cached --quiet || git -C state-branch commit --quiet -m "record: restore run ${GITHUB_RUN_ID}"
+            if git -C state-branch push --quiet "$url" HEAD:deploy-state; then saved=true; break; fi
+            sleep $((i * 3))
+          done
+          if [ "$saved" != true ]; then
+            echo "**記録を保存できませんでした**（自動公開の停止を記録できていない可能性があります）" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -139,4 +152,5 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MODE: restore
           SITES: '[{"site": "${{ inputs.site }}"}]'
-          DEPLOY_RESULT: manual   # 拒否（確認入力の誤りなど）は知らせない。復元の失敗は記録から知らせる
+          # 拒否（確認入力の誤りなど）は知らせない。復元の失敗は記録から知らせ、記録できなかったときは「記録の前に止まった」として知らせる
+          DEPLOY_RESULT: ${{ needs.restore.outputs.status == 'restore-failed' && 'failure' || 'manual' }}
