@@ -133,6 +133,17 @@ class EbisenkaTests(unittest.TestCase):
         self.assertEqual(H.tree(self.r.root), H.tree(self.r.dist))   # サーバー＝ビルド
         self.assertEqual(leftovers(self.r.root), [])
 
+    def test_server_error_folder_is_kept_and_untouched(self):
+        (self.r.root / "error").mkdir()
+        (self.r.root / "error/403.html").write_text("default error page")
+        d, rc, res = self.r.run("publish", confirm="ebisenka.jp")
+        self.assertEqual(res["status"], "published")
+        self.assertEqual((self.r.root / "error/403.html").read_text(), "default error page")
+        (self.r.dist / "error").mkdir()
+        (self.r.dist / "error/403.html").write_text("x")
+        d, _, _ = self.r.run("auto", auto="ebisenka")
+        self.assertEqual(d["status"], "aborted")                       # error/ はビルドに含められない
+
     def test_auto_update_only_changed_file_then_nochange(self):
         self.r.run("publish", confirm="ebisenka.jp")
         p = self.r.dist / "about/index.html"

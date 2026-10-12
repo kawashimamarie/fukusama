@@ -57,6 +57,8 @@ def load_build(site, dist):
             check_path(rel)
         except FtpsError as e:
             raise Stop(str(e)) from None
+        if any(rel == r.rstrip("/") or rel.startswith(r) for r in site.root_ignore):
+            raise Stop(f"サーバー側で管理しているフォルダのファイルはビルドに含められません：{rel}")
         special = rel in site.allowed_special
         if matches(rel, site.protected) and not special:
             raise Stop(f"公開してはいけないファイルがビルドに含まれています：{rel}")
@@ -113,9 +115,10 @@ def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
     info["escape"] = results
     # このサイトの目印（外へ出られないことを確かめた後なので、一覧はこのサイトのフォルダの中だけ）
     names = {n + ("/" if e["type"] == "dir" else "") for n, e in root.items()}
+    own = names - set(site.root_ignore)
     group = None
     for g in site.root_markers:
-        if (not g and not root) or (g and all(m in names for m in g)):
+        if (not g and not own) or (g and all(m in names for m in g)):
             group = list(g)
             break
     if group is None:
@@ -124,7 +127,7 @@ def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
         raise Stop("公開フォルダの中身が、このサイトの目印と一致しません（接続先の誤りの可能性）。"
                    f"フォルダの中：{shown or '（空）'}／上位・他サイトへのアクセス：{esc}")
     info["markers"] = group or "空のフォルダ（初回公開）"
-    info["empty"] = not root
+    info["empty"] = not own
     # 公開中のサイトそのものか（FTPS で読んだ中身と公開URLの中身が同じ）
     info["identity"] = None
     for f in site.identity_files:

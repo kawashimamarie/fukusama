@@ -71,6 +71,8 @@ class Site:
     probes: tuple = ()
     htaccess_block: str = ""           # 福記美食だけ
     form_paths: tuple = ()             # 変わったら「実送信テストが必要」と報告する
+    # 公開フォルダの直下に最初からある、サーバー側のもの（目印の判定では数えない。ビルドに含めない・触れない）
+    root_ignore: tuple = ()
     notes: tuple = field(default_factory=tuple)
 
 
@@ -97,6 +99,8 @@ SITES = {
                   body="email=check%40example.com", note="フォーム：他サイトからの送信を拒否（非送信）"),
         ),
         form_paths=("contact/send.php", "contact/config.php", "contact/index.html"),
+        # お名前.com が作るエラーページ用のフォルダ（2026-10-12 の確認のみで、公開フォルダの中はこれだけ）
+        root_ignore=("error/",),
     ),
     "fukuki": Site(
         id="fukuki",
