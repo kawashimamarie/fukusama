@@ -195,10 +195,10 @@ class EbisenkaTests(unittest.TestCase):
 
     def test_rollback_failure_is_reported_as_urgent(self):
         self.r.run("publish", confirm="ebisenka.jp")
-        p = self.r.dist / "privacy/index.html"
+        p = self.r.dist / "about/index.html"
         p.write_bytes(p.read_bytes() + b"\n<!-- v2 -->\n")
         # 計画の後に Web 側が壊れる：公開後の検証も、戻した後の確認も不合格（トップが 500 のまま）
-        d, rc, res = self.r.run("auto", auto="ebisenka", between=lambda: self.r.web.fail.update({"/privacy/", "/"}))
+        d, rc, res = self.r.run("auto", auto="ebisenka", between=lambda: self.r.web.fail.update({"/about/", "/"}))
         self.assertEqual((rc, res["status"]), (2, "restore-failed"))
         self.assertTrue(res["problems"])
 
@@ -228,14 +228,60 @@ class EbisenkaTests(unittest.TestCase):
         self.assertEqual(res["status"], "aborted")
         self.assertEqual(H.tree(self.r.root), before)
 
-    def test_stale_cache_is_warning_not_rollback(self):
+    def test_stale_cache_is_not_a_normal_publish(self):
         self.r.run("publish", confirm="ebisenka.jp")
         p = self.r.dist / "about/index.html"
         p.write_bytes(p.read_bytes() + b"<!-- v2 -->")
         self.r.web.stale["/about/"] = b"old cached page"
         d, rc, res = self.r.run("auto", auto="ebisenka")
-        self.assertEqual(res["status"], "published-with-warnings")
+        self.assertEqual((rc, res["status"]), (1, "published-cache-stale"))   # 正常な公開としては扱わない
         self.assertIn("キャッシュ", res["warnings"][0])
+        self.assertEqual(H.tree(self.r.root)["about/index.html"], H.tree(self.r.dist)["about/index.html"])  # 元には戻さない
+
+    def test_form_mail_and_privacy_changes_wait_for_approval(self):
+        self.r.run("publish", confirm="ebisenka.jp")
+        for f in ("contact/send.php", "contact/config.php", "contact/index.html", "contact/thanks/index.html",
+                  "privacy/index.html"):
+            p = self.r.dist / f
+            orig = p.read_bytes()
+            p.write_bytes(orig + b"\n")
+            d, _, res = self.r.run("auto", auto="ebisenka")
+            self.assertEqual(d["status"], "awaiting-approval", f)
+            self.assertTrue(any(f in x for x in d["approval_reasons"]), f)
+            self.assertIsNone(res)
+            p.write_bytes(orig)
+        # 一覧にないページでも、フォームを足したら承認待ち
+        p = self.r.dist / "about/index.html"
+        orig = p.read_bytes()
+        p.write_bytes(orig.replace(b"</main>", b'<form action="/contact/send.php"></form></main>', 1))
+        d, _, _ = self.r.run("auto", auto="ebisenka")
+        self.assertEqual(d["status"], "awaiting-approval")
+        self.assertTrue(any("フォームや送信先" in x for x in d["approval_reasons"]))
+        # ふつうのページの変更は自動で公開
+        p.write_bytes(orig + b"<!-- v2 -->")
+        d, _, res = self.r.run("auto", auto="ebisenka")
+        self.assertEqual((d["status"], res["status"]), ("ready", "published"))
+
+    def test_halted_site_is_not_auto_published(self):
+        self.r.run("publish", confirm="ebisenka.jp")
+        self.r.state = dict(self.r.state, halted={"since": "t", "reason": "復元に失敗"})
+        p = self.r.dist / "about/index.html"
+        p.write_bytes(p.read_bytes() + b"<!-- v2 -->")
+        before = H.tree(self.r.root)
+        d, rc, res = self.r.run("auto", auto="ebisenka")
+        self.assertEqual((d["status"], res), ("halted", None))
+        self.assertEqual(H.tree(self.r.root), before)
+
+    def test_records_never_contain_connection_values(self):
+        self.r.run("publish", confirm="ebisenka.jp")
+        work = self.r.dir / "redact"
+        work.mkdir()
+        with env(FTPS_EBISENKA_HOST="ftp.secret-host.example", FTPS_EBISENKA_PASSWORD="pw-9876-secret"):
+            cli._write(work / "decision.json", {"reason": "接続できません ftp.secret-host.example pw-9876-secret",
+                                                "list": ["https://user:pass@host/x"]})
+        text = (work / "decision.json").read_text()
+        for s in ("ftp.secret-host.example", "pw-9876-secret", "user:pass"):
+            self.assertNotIn(s, text)
 
     def test_leftover_temp_file_stops(self):
         self.r.run("publish", confirm="ebisenka.jp")
@@ -373,6 +419,20 @@ class CorporateTests(unittest.TestCase):
         finally:
             r.close()
 
+
+    def test_contact_form_page_waits_for_approval(self):
+        r = Rig("corporate")
+        try:
+            H.copytree(BUILD / "fukushin-e.co.jp", r.root)
+            (r.root / "mail.php").write_text("<?php // existing form")
+            r.state = {"files": {k: core.sha256((r.dist / k).read_bytes()) for k in H.tree(r.dist)}}
+            p = r.dist / "contact.html"
+            p.write_bytes(p.read_bytes() + b"<!-- v2 -->")
+            d, _, _ = r.run("auto", auto="corporate")
+            self.assertEqual(d["status"], "awaiting-approval")
+            self.assertTrue(any("contact.html" in x for x in d["approval_reasons"]))
+        finally:
+            r.close()
 
     def test_tampered_backup_cannot_touch_protected_files(self):
         r = Rig("corporate")

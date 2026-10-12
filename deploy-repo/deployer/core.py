@@ -149,6 +149,20 @@ def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
     return info
 
 
+def _has_form(item, dist, backup_dir):
+    """変更前（バックアップ）か変更後（ビルド）に、フォーム・送信先の目印があるか"""
+    if Path(item["path"]).suffix.lower() not in C.FORM_SCAN_EXT:
+        return False
+    sources = [Path(dist) / item["path"]]
+    if item["op"] == "replace":
+        sources.append(Path(backup_dir) / "files" / item["path"])
+    for s in sources:
+        data = s.read_bytes().lower() if s.is_file() else b""
+        if any(m in data for m in C.FORM_MARKERS):
+            return True
+    return False
+
+
 # ---------------------------------------------------------------- 計画（読み取り）と事前バックアップ
 def plan(ftp, site, dist, build_files, state, backup_dir, token, base_url, extra_escape_paths=()):
     backup_dir = Path(backup_dir)
@@ -236,7 +250,9 @@ def plan(ftp, site, dist, build_files, state, backup_dir, token, base_url, extra
         reasons.append("福記美食の切り替え（.htaccess の先頭に設定を追加）")
     for i in changed:
         if i["path"] in site.approval_paths:
-            reasons.append(f"安全に関わるファイルの変更：{i['path']}")
+            reasons.append(f"フォーム・送信処理・個人情報・安全設定に関わるファイルの変更：{i['path']}")
+        elif _has_form(i, dist, backup_dir):
+            reasons.append(f"フォームや送信先を含むページの変更：{i['path']}")
     if len(changed) > C.MAX_AUTO_FILES or total_bytes > C.MAX_AUTO_BYTES:
         reasons.append(f"変更が多い（{len(changed)} ファイル・{total_bytes:,} バイト）")
     for d in drift:

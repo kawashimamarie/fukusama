@@ -7,11 +7,18 @@
 - 公開後の検証（ページ・転送・見えてはいけないURL・PHP の非送信テスト）
 fukusama リポジトリ（Claude Code が作業する公開リポジトリ）のビルド結果は「データ」としてしか扱わない。
 """
+import os
+import re
 from dataclasses import dataclass, field
 
 # 1回の公開でこれを超えたら、自動では公開せず承認を求める
 MAX_AUTO_FILES = 80
 MAX_AUTO_BYTES = 30 * 1024 * 1024
+
+# 変わると承認が必要な「フォームに関わるファイル」の目印（.html・.php・.js の、変更前か変更後に含まれていれば対象）。
+# approval_paths に書いていないページでも、フォームや送信先を含むなら自動では公開しない
+FORM_MARKERS = (b"<form", b"mail.php", b"send.php")
+FORM_SCAN_EXT = (".html", ".php", ".js")
 
 # 公開してよいファイルの種類（これ以外がビルドに含まれていたら止まる）
 ALLOWED_EXT = {
@@ -87,7 +94,9 @@ SITES = {
         root_markers=(("index.html", "wholesale/", "contact/"), ()),
         protected=DOT_AND_PHP,
         allowed_special=(".htaccess", "contact/send.php", "contact/config.php"),
-        approval_paths=(".htaccess",),
+        # 自動では公開せず、承認（手動の publish）を待つ：安全設定・メール送信・送信先・フォーム・個人情報
+        approval_paths=(".htaccess", "contact/send.php", "contact/config.php", "contact/index.html",
+                        "contact/thanks/index.html", "privacy/index.html"),
         identity_files=("index.html",),
         pages=("/", "/wholesale/", "/bento/", "/kitchen/", "/about/", "/contact/", "/contact/thanks/",
                "/privacy/", "/robots.txt", "/sitemap.xml"),
@@ -127,8 +136,36 @@ SITES = {
         # 既存のお問い合わせフォーム（mail.php）・.htaccess・PHP には触れない
         protected=DOT_AND_PHP + ("mail*", "cgi-bin", "cgi-bin/*"),
         identity_files=("index.html", "assets/css/style.css"),
+        approval_paths=("contact.html",),     # お問い合わせフォーム（送信先は mail.php・自動公開の対象外）
         pages=("/", "/business.html", "/restaurant.html", "/liquor.html", "/food-import.html",
                "/company.html", "/recruit.html", "/contact.html"),
         form_paths=("contact.html",),
     ),
 }
+
+
+# ---------------------------------------------------------------- 記録・通知に出す文の伏せ字
+_SECRET_ENV = re.compile(r"^FTPS_[A-Z]+_(HOST|USER|PASSWORD|PARENT_ABS)$")
+_TOKEN_LIKE = re.compile(r"(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})")
+_URL_CRED = re.compile(r"(://)[^/@\s:]+(:[^/@\s]*)?@")
+
+
+def redact(text):
+    """接続情報（環境変数の値）・トークンらしき文字列・URL の中の認証情報を伏せる"""
+    if not isinstance(text, str):
+        return text
+    for k, v in os.environ.items():
+        if _SECRET_ENV.match(k):
+            for part in [v] + [x for x in v.split(";") if x.strip()]:
+                if len(part.strip()) >= 4:
+                    text = text.replace(part.strip(), "***")
+    text = _TOKEN_LIKE.sub("***", text)
+    return _URL_CRED.sub(r"\1***@", text)
+
+
+def redact_all(obj):
+    if isinstance(obj, dict):
+        return {k: redact_all(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [redact_all(v) for v in obj]
+    return redact(obj)

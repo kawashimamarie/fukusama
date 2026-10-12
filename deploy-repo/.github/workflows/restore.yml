@@ -4,6 +4,7 @@
 #   mode=verify は、本番に接続せずにバックアップを取り出して照合するだけ（いつでも安全に試せる）
 # その公開の後に別の公開があった場合は、何も書かずに止まる（新しい公開から順に戻す）。
 # 復元すると、そのサイトの自動公開は止まり、次の公開には承認（手動の publish）が必要になる。
+# 復元に失敗したときは、そのサイトの自動公開を停止し（「自動公開の再開」で解除するまで）、Issue で知らせる。
 name: 復元（福進発展3サイト）
 
 on:
@@ -28,7 +29,7 @@ on:
 # 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
 # fukusama の scripts/deploy_repo_sums.py が更新する
 env:
-  DEPLOYER_SUMS_SHA256: 74c14b510f30667ff0e3845972a1d08e9d7eb299d7536275638539ff4acf098c
+  DEPLOYER_SUMS_SHA256: 80e570f4a8fec559f7c9655984fd37e618af81379203858f135864485467fe3b
 
 permissions: {}
 
@@ -90,7 +91,7 @@ jobs:
           FTPS_CORPORATE_USER: ${{ inputs.site == 'corporate' && secrets.FTPS_CORPORATE_USER || '' }}
           FTPS_CORPORATE_PASSWORD: ${{ inputs.site == 'corporate' && secrets.FTPS_CORPORATE_PASSWORD || '' }}
       - name: 記録（自動公開を止める）
-        if: inputs.mode == 'restore' && steps.restore.outcome == 'success'
+        if: always() && inputs.mode == 'restore' && (steps.restore.outputs.status == 'restored' || steps.restore.outputs.status == 'restore-failed')
         run: |
           set -e
           git config --global user.name "fukushin-deploy"
@@ -102,7 +103,7 @@ jobs:
             git init --quiet state-branch && git -C state-branch checkout --quiet -b deploy-state
           fi
           mkdir -p "results/${{ inputs.site }}"
-          echo '{"status":"restored","reason":"手動の復元（実行 ${{ inputs.run_id }} の事前バックアップ）"}' > "results/${{ inputs.site }}/result.json"
+          python3 -c 'import json,os,sys; json.dump({"status": os.environ["ST"], "reason": ("手動の復元（実行 " + os.environ["RID"] + " の事前バックアップ）" + ("に失敗：" + os.environ.get("WHY", "") if os.environ["ST"] == "restore-failed" else ""))}, sys.stdout, ensure_ascii=False)' > "results/${{ inputs.site }}/result.json"
           export SHA=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/kawashimamarie/fukusama/commits/main | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')
           export NOW=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S')
           STATE_DIR=state-branch/state MODE=restore python3 -m deployer.gh record
@@ -111,3 +112,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           FUKUSHIN_STATUS_TOKEN: ${{ secrets.FUKUSHIN_STATUS_TOKEN }}
+          ST: ${{ steps.restore.outputs.status }}
+          WHY: ${{ steps.restore.outputs.reason }}
+          RID: ${{ inputs.run_id }}
+
+  notify:
+    needs: restore
+    if: always() && inputs.mode == 'restore'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 公開の仕組みの照合
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
+      - name: 通知
+        run: python3 -m deployer.gh notify
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MODE: restore
+          SITES: '[{"site": "${{ inputs.site }}"}]'
+          DEPLOY_RESULT: manual   # 拒否（確認入力の誤りなど）は知らせない。復元の失敗は記録から知らせる

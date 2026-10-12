@@ -1,7 +1,12 @@
 # 福進発展グループ3サイトの公開（デプロイ専用リポジトリ kawashimamarie/fukushin-deploy に置く）
 #
-# 自動：日本時間 8:05〜21:05 の毎時、fukusama の main の最新（CI 合格済み）を確かめ、変わったサイトだけを公開する。
+# 自動：次のどれかで起動し、fukusama の main の最新（CI 合格済み）を確かめ、変わったサイトだけを公開する。
+#       ・fukusama の CI 合格の知らせ（repository_dispatch: fukusama-ci-passed。送る側の設定はご本人の承認後）
+#       ・Claude からの手動起動（mode=auto）
+#       ・定期実行（日本時間 8:05〜21:05 の毎時。取りこぼしを拾う予備）
 #       自動で公開するのは、変数 AUTO_PUBLISH_SITES に入っているサイトの「承認が不要な変更」だけ。
+#       フォーム・送信処理・送信先・個人情報・.htaccess に関わる変更は承認待ち（Issue で知らせる）。
+#       自動の起動どうしは1列に並び（後から来たものが待ちの古いものに置き換わる）、処理済みのコミットは飛ばす。
 # 手動：Actions → 「公開（福進発展3サイト）」→ Run workflow
 #       mode=check（確認のみ・書き込みなし）／publish（承認して公開。confirm にドメイン名）／auto（自動と同じ判定）
 #
@@ -12,6 +17,8 @@ name: 公開（福進発展3サイト）
 on:
   schedule:
     - cron: '5 23,0-12 * * *'    # UTC。日本時間 8:05〜21:05 の毎時
+  repository_dispatch:
+    types: [fukusama-ci-passed]  # 中身（コミット番号）は信用せず、main の最新と CI を自分で確かめる
   workflow_dispatch:
     inputs:
       site:
@@ -33,9 +40,14 @@ on:
 # 書き換えても動かない（ワークフローの変更はご本人だけ。GITHUB_TOKEN ではワークフローを変更できない）。
 # fukusama の scripts/deploy_repo_sums.py が更新する
 env:
-  DEPLOYER_SUMS_SHA256: 74c14b510f30667ff0e3845972a1d08e9d7eb299d7536275638539ff4acf098c
+  DEPLOYER_SUMS_SHA256: 80e570f4a8fec559f7c9655984fd37e618af81379203858f135864485467fe3b
 
 permissions: {}
+
+# 自動の起動（定期・CI 合格の知らせ・mode=auto）は1列に並べる。手動の確認・承認の公開は並べない
+concurrency:
+  group: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode != 'auto') && format('publish-manual-{0}', github.run_id) || 'publish-auto' }}
+  cancel-in-progress: false
 
 jobs:
   resolve:
@@ -64,7 +76,8 @@ jobs:
           EVENT: ${{ github.event_name }}
           INPUT_SITE: ${{ inputs.site }}
           INPUT_MODE: ${{ inputs.mode }}
-          AUTO_SITES: ${{ vars.AUTO_PUBLISH_SITES }}   # 定期の確認は、ここに入っているサイトだけを処理する（空なら接続しない）
+          DISPATCH_SHA: ${{ github.event.client_payload.sha }}
+          AUTO_SITES: ${{ vars.AUTO_PUBLISH_SITES }}   # 自動の判定は、ここに入っているサイトだけを処理する（空なら接続しない）
 
   build:
     needs: resolve
@@ -168,7 +181,7 @@ jobs:
           head=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/kawashimamarie/fukusama/commits/main | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')
           if [ "$head" != "${{ needs.resolve.outputs.sha }}" ]; then
             echo "main が進んでいるため公開しません（次の実行で新しいコミットを公開します）" | tee -a "$GITHUB_STEP_SUMMARY"
-            echo '{"decision":"skip","status":"aborted","reason":"main が進んだため取りやめ"}' > work/decision.json
+            echo '{"decision":"skip","status":"superseded","reason":"main が進んだため取りやめ（新しいコミットを次に処理）"}' > work/decision.json
             echo "ok=false" >> "$GITHUB_OUTPUT"
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
@@ -222,3 +235,30 @@ jobs:
           MODE: ${{ needs.resolve.outputs.mode }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           FUKUSHIN_STATUS_TOKEN: ${{ secrets.FUKUSHIN_STATUS_TOKEN }}
+
+  # 対応が必要な結果（公開失敗・自動復元・復元失敗・承認待ち・キャッシュ不一致・停止中）を Issue で知らせる。
+  # FTPS の情報は渡さない。載せるのは状態・理由（接続情報を伏せた文）・実行の URL だけ。サイトごとに1件・同じ内容は送らない
+  notify:
+    needs: [resolve, build, deploy]
+    if: always() && needs.resolve.outputs.sites != '[]' && needs.resolve.outputs.sites != '' && needs.resolve.outputs.mode != 'check'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read      # deploy-state ブランチの記録を読む
+      issues: write       # 通知の Issue を作る・追記する・閉じる
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 公開の仕組みの照合
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
+      - name: 通知
+        run: python3 -m deployer.gh notify
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MODE: ${{ needs.resolve.outputs.mode }}
+          SITES: ${{ needs.resolve.outputs.sites }}
+          DEPLOY_RESULT: ${{ (needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.deploy.result == 'cancelled') && 'failure' || needs.deploy.result }}

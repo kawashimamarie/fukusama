@@ -94,11 +94,18 @@ def cmd_prepare(a):
     head = [f"## {site.domain}：確認・事前バックアップ（{now()}）", f"- コミット：`{a.sha or '-'}`・モード：{a.mode}"]
     if a.mode == "publish" and a.confirm != site.domain:
         decision = {"decision": "skip", "status": "rejected", "reason": f"確認入力がドメイン名（{site.domain}）と一致しません"}
-        (work / "decision.json").write_text(json.dumps(decision, ensure_ascii=False))
+        _write(work / "decision.json", decision)
         summary(head + [f"**止めました**：{decision['reason']}（サーバーには接続していません）"])
         output(decision="skip", status="rejected")
         return 1
     state = json.loads(Path(a.state).read_text()) if a.state and Path(a.state).is_file() else None
+    if a.mode == "auto" and state and state.get("halted"):
+        decision = {"decision": "skip", "status": "halted",
+                    "reason": "自動公開を停止中です（復元に失敗したため）。原因を解消し、「自動公開の再開」で解除してください"}
+        _write(work / "decision.json", decision)
+        summary(head + [f"**止めました（接続していません）**：{decision['reason']}"])
+        output(decision="skip", status="halted")
+        return 0
     token = a.token or secrets.token_hex(6)
     try:
         build = core.load_build(site, a.dist)
@@ -110,7 +117,7 @@ def cmd_prepare(a):
             ftp.close()
     except (core.Stop, FtpsError) as e:
         decision = {"decision": "skip", "status": "aborted", "reason": str(e)}
-        (work / "decision.json").write_text(json.dumps(decision, ensure_ascii=False))
+        _write(work / "decision.json", decision)
         summary(head + [f"**止めました（書き込みなし）**：{e}"])
         output(decision="skip", status="aborted")
         return 1
@@ -131,7 +138,7 @@ def cmd_prepare(a):
     else:
         decision = {"decision": "apply", "status": "ready", "reason": "ご本人の承認（手動実行・確認入力あり）"}
     decision["approval_reasons"] = pl["approval_reasons"]
-    (work / "decision.json").write_text(json.dumps(decision, ensure_ascii=False))
+    _write(work / "decision.json", decision)
     lines = head + table_plan(pl) + [""]
     if pl["approval_reasons"]:
         lines.append("**承認が必要な理由**：" + "／".join(pl["approval_reasons"]))
@@ -141,8 +148,13 @@ def cmd_prepare(a):
     return 0
 
 
+def _write(path, data):
+    """記録（decision.json・result.json）は、接続情報などを伏せてから書く（記録と通知に使われるため）"""
+    Path(path).write_text(json.dumps(C.redact_all(data), ensure_ascii=False, indent=1))
+
+
 def _result(work, data):
-    (Path(work) / "result.json").write_text(json.dumps(data, ensure_ascii=False, indent=1))
+    _write(Path(work) / "result.json", data)
 
 
 def cmd_apply(a):
@@ -190,18 +202,21 @@ def cmd_apply(a):
         errors, warnings = core.verify_live(site, pl, a.dist, base_url, pl["token"], cache_wait=a.cache_wait)
         if errors:
             return _rollback(ftp, site, pl, done, vb, base_url, res, work, head, "公開後の検証に不合格：" + "／".join(errors[:10]), log)
-        res.update(status="published-with-warnings" if warnings else "published", warnings=warnings, finished=now(),
+        # キャッシュに古いページが残るなどの注意は「正常な公開」として扱わない（ファイルは正しいので元には戻さない）
+        res.update(status="published-cache-stale" if warnings else "published", warnings=warnings, finished=now(),
                    state={"site": site.id, "domain": site.domain, "published_sha": a.sha, "updated_at": now(),
                           "files": {k: v["sha256"] for k, v in pl["build_files"].items()}})
         _result(work, res)
         lines = head + [f"**公開しました**（{len(done)} 件の操作・公開後の検証に合格）"] + [f"- {x}" for x in res["log"]]
         if warnings:
-            lines += ["", "**注意**："] + [f"- {w}" for w in warnings]
+            lines[len(head)] = (f"**公開しましたが、公開URLの表示が新しい内容と一致しません**（{len(done)} 件の操作・"
+                                "サーバーのファイルは照合済み・元には戻していません）")
+            lines += ["", "**要対応**："] + [f"- {w}" for w in warnings]
         if pl["form_changed"]:
             lines.append(f"- フォームに関わる変更があります（{'、'.join(pl['form_changed'])}）：実送信テストを行ってください（実際の受信は未確認）")
         summary(lines)
         output(status=res["status"])
-        return 0
+        return 1 if warnings else 0
     finally:
         ftp.close()
 
@@ -254,8 +269,10 @@ def cmd_restore(a):
         ftp.close()
     if problems:
         summary(head + ["# 【至急】復元できなかったものがあります"] + [f"- {p}" for p in problems])
+        output(status="restore-failed", reason=C.redact(" / ".join(problems))[:300].replace("\n", " "))
         return 2
     summary(head + ["**復元しました**（公開前の状態・公開URLで確認済み）"] + [f"- {x}" for x in log_lines])
+    output(status="restored")
     return 0
 
 

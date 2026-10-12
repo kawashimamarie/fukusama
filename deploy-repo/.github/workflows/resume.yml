@@ -1,0 +1,71 @@
+# 自動公開の再開（ご本人だけ）。復元に失敗して自動公開を止めたサイトを、原因を解消した後に解除する。
+#   Actions → 「自動公開の再開」→ Run workflow：site・confirm（ドメイン名）
+# 本番サーバーには接続しない（deploy-state ブランチの記録を書き換えるだけ）。解除した後も、前回の公開の後に
+# サーバーが変わっていれば、次の公開は承認待ちになる。
+name: 自動公開の再開
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        type: choice
+        options: [ebisenka, fukuki, corporate]
+      confirm:
+        description: ドメイン名（例 ebisenka.jp）
+        type: string
+        default: ''
+
+env:
+  DEPLOYER_SUMS_SHA256: 80e570f4a8fec559f7c9655984fd37e618af81379203858f135864485467fe3b
+
+permissions: {}
+
+concurrency:
+  group: deploy-${{ inputs.site }}     # 公開・復元と同じ組
+  cancel-in-progress: false
+
+jobs:
+  resume:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write     # deploy-state ブランチの記録
+      issues: write       # 停止の通知を閉じる
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 公開の仕組みの照合
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
+      - name: 停止の解除（記録だけ）
+        run: |
+          set -e
+          git config --global user.name "fukushin-deploy"
+          git config --global user.email "fukushin-deploy@users.noreply.github.com"
+          url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git clone --quiet --depth 1 --branch deploy-state "$url" state-branch
+          export NOW=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S')
+          STATE_DIR=state-branch/state python3 -m deployer.gh resume
+          if ! git -C state-branch diff --quiet; then
+            git -C state-branch commit --quiet -am "resume: ${SITE} run ${GITHUB_RUN_ID}"
+            git -C state-branch push --quiet "$url" HEAD:deploy-state
+            python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, ".")
+          from deployer import gh, config as C
+          site = os.environ["SITE"]
+          it = gh._find_issue(os.environ["GITHUB_REPOSITORY"], os.environ["GH_TOKEN"], site)
+          if it:
+              gh.api(f"/repos/{os.environ['GITHUB_REPOSITORY']}/issues/{it['number']}/comments", os.environ["GH_TOKEN"], "POST",
+                     {"body": f"{C.SITES[site].domain}：自動公開の停止を解除しました（{os.environ['RUN_URL']}）。この通知を閉じます。"})
+              gh.api(f"/repos/{os.environ['GITHUB_REPOSITORY']}/issues/{it['number']}", os.environ["GH_TOKEN"], "PATCH",
+                     {"state": "closed", "state_reason": "completed"})
+          PY
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE: ${{ inputs.site }}
+          CONFIRM: ${{ inputs.confirm }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

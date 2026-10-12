@@ -3,10 +3,14 @@
   python -m deployer.gh resolve   公開するコミット（fukusama の main の最新）と、処理するサイトを決める
   python -m deployer.gh record    結果を deploy-state ブランチの state/<サイト>.json に記録し、
                                   （任意）fukusama のコミットに結果の状態（fukushin-deploy/<サイト>）を付ける
+  python -m deployer.gh notify    この実行の結果のうち、対応が必要なもの（公開失敗・自動復元・復元失敗・承認待ち・
+                                  キャッシュ不一致・停止中）を、サイトごとに1件の Issue で知らせる（重複しない）
+  python -m deployer.gh resume    復元の失敗で止めた自動公開を、ご本人の明示的な操作で再開する（記録の更新だけ）
 """
 import base64
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -92,9 +96,18 @@ def resolve():
         states[s] = read_state(s, token)
         if states[s]:
             (sd / f"{s}.json").write_text(json.dumps(states[s], ensure_ascii=False))
-    mode = "auto" if event == "schedule" else in_mode
-    lines = [f"## 公開の対象（fukusama main：`{sha[:12]}`・CI：{ci}・モード：{mode}）"]
-    if event == "schedule":
+    # 自動の判定で動くもの：定期実行・fukusama の CI 合格の知らせ（repository_dispatch）・手動の mode=auto（Claude からの起動）。
+    # どれも同じ判定（main の最新・CI 合格・AUTO_PUBLISH_SITES のサイトだけ・処理済みのコミットは飛ばす・停止中は飛ばす）
+    auto_event = event in ("schedule", "repository_dispatch") or (event == "workflow_dispatch" and in_mode == "auto")
+    mode = "auto" if auto_event else in_mode
+    lines = [f"## 公開の対象（fukusama main：`{sha[:12]}`・CI：{ci}・モード：{mode}・起動：{event}）"]
+    if event == "repository_dispatch":
+        sent = os.environ.get("DISPATCH_SHA", "")
+        if not re.fullmatch(r"[0-9a-f]{40}", sent):
+            lines.append("- 知らせのコミット番号が読めません（main の最新で判定します）")
+        elif sent != sha:
+            lines.append(f"- 知らせのコミット `{sent[:12]}` より main が進んでいます（main の最新で判定します）")
+    if auto_event:
         if ci != "success":
             sites = []
             lines.append(f"- CI（{CI_WORKFLOW}）が成功していないため、今回は何もしません（{ci}）")
@@ -107,6 +120,10 @@ def resolve():
                 if s not in auto:
                     continue
                 stt = states[s] or {}
+                if stt.get("halted"):
+                    lines.append(f"- {C.SITES[s].domain}：**自動公開を停止中**（{stt['halted'].get('reason', '')[:120]}）。"
+                                 "原因を解消し、「自動公開の再開」で解除するまで処理しません")
+                    continue
                 if stt.get("handled_sha") == sha and not (stt.get("last_status") == "aborted"
                                                           and stt.get("attempts", 0) < MAX_ABORT_RETRY):
                     lines.append(f"- {C.SITES[s].domain}：このコミットは処理済み（{stt.get('last_status')}）")
@@ -127,9 +144,10 @@ def resolve():
     return 0
 
 
-STATUS_STATE = {"published": "success", "published-with-warnings": "success", "no-change": "success",
-                "checked": "success", "awaiting-approval": "pending", "rejected": "error", "aborted": "error",
-                "rolled-back": "failure", "restore-failed": "failure"}
+STATUS_STATE = {"published": "success", "no-change": "success", "checked": "success",
+                "published-cache-stale": "error", "awaiting-approval": "pending", "superseded": "pending",
+                "halted": "error", "rejected": "error", "aborted": "error",
+                "rolled-back": "failure", "restore-failed": "failure", "restored": "success"}
 
 
 def record():
@@ -163,6 +181,9 @@ def record():
             st.update(published_sha=sha, files=res["state"]["files"], published_at=now)
         if status == "restored":
             st["files"] = None
+        if status == "restore-failed" and not st.get("halted"):
+            # 自動の復元・手動の復元に失敗したサイトは、自動公開を止める（ご本人が「自動公開の再開」で解除するまで）
+            st["halted"] = {"since": now, "reason": reason[:300], "run": run_url, "sha": sha}
         f.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n")
         changed = True
         lines.append(f"- {C.SITES[site].domain}：**{status}**（{reason}）")
@@ -172,6 +193,156 @@ def record():
                 "description": f"{status}：{reason}"[:139], "target_url": run_url})
     summary("\n".join(lines))
     out(changed="true" if changed else "false")
+    return 0
+
+
+# ---------------------------------------------------------------- 通知（Issue）
+NOTIFY_LABEL = {
+    "rolled-back": "公開に失敗し、自動で元に戻しました",
+    "restore-failed": "【至急】元に戻せませんでした（自動公開を停止しました）",
+    "awaiting-approval": "承認待ち（自動では公開しない変更があります）",
+    "published-cache-stale": "公開しましたが、公開URLの表示が一致しません（キャッシュ）",
+    "aborted": "公開できませんでした（書き込みなし）",
+    "halted": "自動公開を停止中です",
+    "run-failed": "公開の実行が記録の前に止まりました",
+}
+NOTIFY_TODO = {
+    "rolled-back": "サイトは公開前の状態です。実行の要約で原因を確かめ、修正してから main に入れ直してください。",
+    "restore-failed": "サイトが途中の状態の可能性があります。実行の要約の「戻せなかったもの」を確かめ、docs/17 の手動での復旧を行ってください。"
+                      "原因を解消したら、Actions の「自動公開の再開」（確認入力にドメイン名）で解除します。",
+    "awaiting-approval": "内容を確かめ、公開してよければ Actions の「公開（福進発展3サイト）」を mode=publish・confirm にドメイン名で実行してください。",
+    "published-cache-stale": "サーバーのファイルは正しく置き換わっています。お名前.com のコントロールパネルでキャッシュを削除し、公開URLを確かめてください。",
+    "aborted": "書き込みはしていません。一時的な不調なら次の実行で再試行されます（同じコミットで最大3回）。",
+    "halted": "原因を解消してから、Actions の「自動公開の再開」で解除してください。解除するまで自動公開しません。",
+    "run-failed": "実行のログを確かめてください。結果の記録がないため、サーバーの状態は「確認のみ」で確かめてください。",
+}
+RESOLVED = {"published", "no-change"}
+MARK = "<!-- fukushin-deploy-notify site={site} -->"
+KEY = "<!-- fukushin-deploy-key {key} -->"
+
+
+def _clean(text, limit=600):
+    """通知に出す文：接続情報・トークンを伏せ、HTML のコメントや @ の呼びかけを無効にし、長さを抑える"""
+    text = C.redact(str(text or ""))
+    text = text.replace("<!--", "‹!--").replace("-->", "--›").replace("@", "＠").replace("\r", " ")
+    return text[:limit]
+
+
+def notify_kind(st, run_url, deploy_result, mode):
+    """この実行で、このサイトに通知が要るか：(種類, 重複を防ぐ鍵) / 解消なら ("resolved", None) / 何もなし None"""
+    if st.get("last_run") != run_url:
+        return ("run-failed", f"run-failed:{run_url}") if deploy_result == "failure" else None
+    status = st.get("last_status")
+    sha = st.get("handled_sha", "")
+    if status in RESOLVED:
+        return ("resolved", None)
+    if status == "halted":
+        return ("halted", "halted:" + (st.get("halted") or {}).get("since", ""))   # 停止の間は1回だけ
+    if status == "aborted":
+        if mode == "auto" and st.get("attempts", 0) < MAX_ABORT_RETRY:
+            return None                     # 自動の再試行の途中は知らせない
+        return ("aborted", f"aborted:{sha}")
+    if status in NOTIFY_LABEL:
+        return (status, f"{status}:{sha}")
+    return None
+
+
+def _find_issue(repo, token, site):
+    mark = MARK.format(site=site)
+    for page in range(1, 6):
+        st, items = api(f"/repos/{repo}/issues?state=open&per_page=100&page={page}", token)
+        if st != 200 or not items:
+            return None
+        for it in items:
+            if "pull_request" not in it and mark in (it.get("body") or ""):
+                return it
+    return None
+
+
+def _issue_keys(repo, token, issue):
+    keys = set(re.findall(r"<!-- fukushin-deploy-key (\S+) -->", issue.get("body") or ""))
+    st, comments = api(f"/repos/{repo}/issues/{issue['number']}/comments?per_page=100", token)
+    for c in (comments or []) if st == 200 else []:
+        keys.update(re.findall(r"<!-- fukushin-deploy-key (\S+) -->", c.get("body") or ""))
+    return keys
+
+
+def notify():
+    token = os.environ["GITHUB_TOKEN"]
+    repo = os.environ["GITHUB_REPOSITORY"]
+    run_url = os.environ.get("RUN_URL", "")
+    mode = os.environ.get("MODE", "")
+    deploy_result = os.environ.get("DEPLOY_RESULT", "")
+    sites = [m["site"] for m in json.loads(os.environ.get("SITES") or "[]")]
+    lines = ["## 通知"]
+    if mode == "check":
+        lines.append("- 確認のみの実行のため、通知しません")
+        summary("\n".join(lines))
+        return 0
+    for site in sites:
+        if site not in C.SITES:
+            continue
+        dom = C.SITES[site].domain
+        st = read_state(site, token) or {}
+        k = notify_kind(st, run_url, deploy_result, mode)
+        issue = _find_issue(repo, token, site)
+        if k is None:
+            lines.append(f"- {dom}：通知なし")
+            continue
+        kind, key = k
+        if kind == "resolved":
+            if issue:
+                api(f"/repos/{repo}/issues/{issue['number']}/comments", token, "POST",
+                    {"body": f"{dom}：{st.get('last_status')} になりました（{run_url}）。この通知を閉じます。\n\n---\n_fukushin-deploy_"})
+                api(f"/repos/{repo}/issues/{issue['number']}", token, "PATCH", {"state": "closed", "state_reason": "completed"})
+                lines.append(f"- {dom}：解消したため Issue #{issue['number']} を閉じました")
+            else:
+                lines.append(f"- {dom}：通知なし（正常）")
+            continue
+        sha = st.get("handled_sha", "") or ""
+        reason = (st.get("halted") or {}).get("reason") if kind == "halted" else st.get("last_reason")
+        body = "\n".join([
+            f"**{NOTIFY_LABEL[kind]}**", "",
+            f"- サイト：{dom}",
+            f"- コミット：`{sha[:12] or '-'}`（fukusama main）",
+            f"- 実行：{run_url}",
+            f"- 理由：{_clean(reason) or '（実行の要約を確かめてください）'}",
+            f"- 次にすること：{NOTIFY_TODO[kind]}", "",
+            "ファイルの中身・接続情報は載せていません。詳しくは実行の要約を確かめてください。", "",
+            KEY.format(key=key)])
+        if issue:
+            if key in _issue_keys(repo, token, issue):
+                lines.append(f"- {dom}：通知済み（Issue #{issue['number']}・重複のため送りません）")
+                continue
+            s, _ = api(f"/repos/{repo}/issues/{issue['number']}/comments", token, "POST", {"body": body})
+            lines.append(f"- {dom}：Issue #{issue['number']} に追記（{kind}・HTTP {s}）")
+        else:
+            s, j = api(f"/repos/{repo}/issues", token, "POST", {
+                "title": f"[公開] {dom}：{NOTIFY_LABEL[kind]}",
+                "body": MARK.format(site=site) + "\n" + body})
+            lines.append(f"- {dom}：Issue を作成（{kind}・HTTP {s}{'・#' + str(j['number']) if j else ''}）")
+    summary("\n".join(lines))
+    return 0
+
+
+def resume():
+    """state/<site>.json の停止を解除する（STATE_DIR の中を書き換える。push はワークフローが行う）"""
+    site, confirm = os.environ.get("SITE", ""), os.environ.get("CONFIRM", "")
+    if site not in C.SITES:
+        raise SystemExit("サイトの指定が正しくありません")
+    if confirm != C.SITES[site].domain:
+        raise SystemExit(f"確認入力がドメイン名（{C.SITES[site].domain}）と一致しません（何もしません）")
+    f = Path(os.environ.get("STATE_DIR", "state-branch/state")) / f"{site}.json"
+    st = json.loads(f.read_text()) if f.is_file() else {}
+    if not st.get("halted"):
+        summary(f"## {C.SITES[site].domain}：自動公開は停止していません（何もしません）")
+        out(changed="false")
+        return 0
+    st["resumed"] = {"at": os.environ.get("NOW", ""), "run": os.environ.get("RUN_URL", ""), "was": st.pop("halted")}
+    f.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n")
+    summary(f"## {C.SITES[site].domain}：自動公開の停止を解除しました\n- 次の変更から、通常の自動公開の判定に戻ります"
+            "（前回の公開の後にサーバーが変わっていれば、承認待ちになります）")
+    out(changed="true")
     return 0
 
 
@@ -187,4 +358,5 @@ def getstate():
 
 
 if __name__ == "__main__":
-    sys.exit({"resolve": resolve, "record": record, "getstate": getstate}[sys.argv[1]]())
+    sys.exit({"resolve": resolve, "record": record, "getstate": getstate, "notify": notify,
+              "resume": resume}[sys.argv[1]]())
