@@ -11,6 +11,7 @@
 """
 import html
 import json
+import os
 import re
 import shutil
 from datetime import date
@@ -59,6 +60,10 @@ ORG_LD = {
     },
 }
 
+
+# 日付（フッターの年・sitemap の lastmod）。同じソースから同じ成果物を作るため、
+# scripts/build_sites.py が「このサイトを最後に変更したコミットの日付」を BUILD_DATE で渡す。
+BUILD_DATE = os.environ.get("BUILD_DATE") or date.today().isoformat()
 
 def minify_css(path):
     """コメント・余分な空白を除去する簡易ミニファイ（src/ 側は読みやすいまま保つ）。"""
@@ -172,7 +177,7 @@ def render(meta, body, layout):
         "{{nav}}": "".join(nav_items),
         "{{breadcrumb}}": breadcrumb_html(crumbs),
         "{{body_class}}": meta.get("body_class", ""),
-        "{{year}}": str(date.today().year),
+        "{{year}}": BUILD_DATE[:4],
         "{{content}}": body,
     }
     out = layout
@@ -209,7 +214,7 @@ def build():
             urls.append((meta["path"], meta.get("priority", "0.6")))
         print("built", meta["path"])
 
-    today = date.today().isoformat()
+    today = BUILD_DATE
     sm = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for path, prio in urls:
         sm.append(f"  <url><loc>{SITE['url']}{path}</loc><lastmod>{today}</lastmod><priority>{prio}</priority></url>")

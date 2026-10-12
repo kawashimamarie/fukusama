@@ -1,0 +1,55 @@
+name: site-ci
+
+# 3サイトの品質確認（公開はしない）。デプロイ専用リポジトリは、main の最新のコミットでこの CI が成功しているときだけ公開する。
+# 秘密情報は使わない（このリポジトリは公開リポジトリ。本番の接続情報は置かない）。
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0          # 各サイトの日付（最後に変えたコミット）の判定に履歴が要る
+          persist-credentials: false
+      - name: Python の準備
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet -r tests/deploy/requirements.txt actionlint-py==1.7.12.25
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      - name: ビルド（2回作って同じになること）
+        run: |
+          python scripts/build_sites.py out
+          python scripts/build_sites.py "$RUNNER_TEMP/out2" > /dev/null
+          diff -r out "$RUNNER_TEMP/out2"
+      - name: 公開成果物の検査（禁止ファイル・参照切れ・SEO・秘密情報・表現・フォーム設定）
+        run: python scripts/qa/check_sites.py out
+      - name: PHP の構文
+        run: find out -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: フォームのローカルテスト（実際のメールは送らない）
+        run: python scripts/qa/form_test.py out
+      - name: 公開の仕組みのテスト（ローカルの FTPS・HTTP サーバー。本番には接続しない）
+        run: python -m unittest discover -s tests/deploy -v
+      - name: 公開の仕組みの照合ファイルが最新か
+        run: python scripts/deploy_repo_sums.py --check
+      - name: ワークフローの検査
+        run: actionlint -shellcheck= .github/workflows/*.yml deploy-repo/.github/workflows/*.yml
+      - name: 表示確認（PC・スマートフォン）
+        run: |
+          npm install --no-save --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/pw/node_modules/playwright" node scripts/qa/browser_check.mjs out qa-shots
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: qa-shots
+          path: qa-shots/
+          retention-days: 14
+          if-no-files-found: ignore

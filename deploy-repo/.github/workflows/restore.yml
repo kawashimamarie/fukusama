@@ -1,0 +1,105 @@
+# 公開の後に元へ戻したいとき（手動・ご本人だけ）。指定した公開の実行の「事前バックアップ」で、そのサイトを公開前に戻す。
+#   Actions → 「復元（福進発展3サイト）」→ Run workflow
+#   site：サイト／run_id：戻したい公開の実行番号（その実行のページの URL の数字）／confirm：ドメイン名
+#   mode=verify は、本番に接続せずにバックアップを取り出して照合するだけ（いつでも安全に試せる）
+# その公開の後に別の公開があった場合は、何も書かずに止まる（新しい公開から順に戻す）。
+# 復元すると、そのサイトの自動公開は止まり、次の公開には承認（手動の publish）が必要になる。
+name: 復元（福進発展3サイト）
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        type: choice
+        options: [ebisenka, fukuki, corporate]
+      run_id:
+        description: 戻したい公開の実行番号
+        type: string
+      mode:
+        type: choice
+        options: [verify, restore]
+        default: verify
+      confirm:
+        description: restore のときはドメイン名（例 ebisenka.jp）
+        type: string
+        default: ''
+
+permissions: {}
+
+concurrency:
+  group: deploy-${{ inputs.site }}     # 公開と同じ組：同じサイトの公開・復元は同時に動かない
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write     # 復元の記録（deploy-state ブランチ）
+      actions: read       # 別の実行のバックアップを取り出す
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 公開の仕組みの照合
+        run: sha256sum --strict -c deployer/SHA256SUMS
+      - name: 入力の確認
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "run_id は数字だけで入力してください"; exit 1; }
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backup-${{ inputs.site }}-${{ inputs.run_id }}
+          path: backup/
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: バックアップの照合（本番に接続しない）
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          sys.path.insert(0, ".")
+          from deployer import core, config as C
+          pl = json.load(open("backup/plan.json"))
+          core.verify_backup(pl, "backup", C.SITES["${{ inputs.site }}"])
+          c = pl["counts"]
+          print(f"バックアップは正常です：置き換え {c['replace']} 件を元の中身に戻し、追加 {c['add']} 件を削除できます"
+                + ("、.htaccess を元に戻せます" if pl["htaccess"] else ""))
+          EOF
+      - id: restore
+        if: inputs.mode == 'restore'
+        name: 復元
+        run: python3 -m deployer restore --site "${{ inputs.site }}" --backup backup --confirm "$CONFIRM"
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          FTPS_EBISENKA_HOST: ${{ inputs.site == 'ebisenka' && secrets.FTPS_EBISENKA_HOST || '' }}
+          FTPS_EBISENKA_USER: ${{ inputs.site == 'ebisenka' && secrets.FTPS_EBISENKA_USER || '' }}
+          FTPS_EBISENKA_PASSWORD: ${{ inputs.site == 'ebisenka' && secrets.FTPS_EBISENKA_PASSWORD || '' }}
+          FTPS_FUKUKI_HOST: ${{ inputs.site == 'fukuki' && secrets.FTPS_FUKUKI_HOST || '' }}
+          FTPS_FUKUKI_USER: ${{ inputs.site == 'fukuki' && secrets.FTPS_FUKUKI_USER || '' }}
+          FTPS_FUKUKI_PASSWORD: ${{ inputs.site == 'fukuki' && secrets.FTPS_FUKUKI_PASSWORD || '' }}
+          FTPS_CORPORATE_HOST: ${{ inputs.site == 'corporate' && secrets.FTPS_CORPORATE_HOST || '' }}
+          FTPS_CORPORATE_USER: ${{ inputs.site == 'corporate' && secrets.FTPS_CORPORATE_USER || '' }}
+          FTPS_CORPORATE_PASSWORD: ${{ inputs.site == 'corporate' && secrets.FTPS_CORPORATE_PASSWORD || '' }}
+      - name: 記録（自動公開を止める）
+        if: inputs.mode == 'restore' && steps.restore.outcome == 'success'
+        run: |
+          set -e
+          git config --global user.name "fukushin-deploy"
+          git config --global user.email "fukushin-deploy@users.noreply.github.com"
+          url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code "$url" refs/heads/deploy-state >/dev/null; then
+            git clone --quiet --depth 1 --branch deploy-state "$url" state-branch
+          else
+            git init --quiet state-branch && git -C state-branch checkout --quiet -b deploy-state
+          fi
+          mkdir -p "results/${{ inputs.site }}"
+          echo '{"status":"restored","reason":"手動の復元（実行 ${{ inputs.run_id }} の事前バックアップ）"}' > "results/${{ inputs.site }}/result.json"
+          export SHA=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/kawashimamarie/fukusama/commits/main | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')
+          export NOW=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S')
+          STATE_DIR=state-branch/state MODE=restore python3 -m deployer.gh record
+          cd state-branch && git add state && git commit --quiet -m "record: restore run ${GITHUB_RUN_ID}" && git push --quiet "$url" HEAD:deploy-state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FUKUSHIN_STATUS_TOKEN: ${{ secrets.FUKUSHIN_STATUS_TOKEN }}

@@ -1,0 +1,3 @@
+pyftpdlib==1.5.10
+pyOpenSSL==26.4.0
+pillow==12.3.0
