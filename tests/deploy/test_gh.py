@@ -260,6 +260,14 @@ class NotifyTests(unittest.TestCase):
         gh.notify()
         self.assertEqual(self.issues[1]["comments"], [])
 
+    def test_selftest_flow_passes_against_fake_issue_api(self):
+        from deployer import notify_selftest, config as C
+        self.addCleanup(C.SITES.pop, "selftest", None)
+        self.assertEqual(notify_selftest.main(), 0)
+        self.assertEqual(len(self.issues), 1)
+        self.assertEqual(self.issues[1]["state"], "closed")
+        self.assertIn("通知のテスト", self.issues[1]["body"])
+
 
 if __name__ == "__main__":
     unittest.main()

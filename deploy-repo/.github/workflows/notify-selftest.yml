@@ -1,0 +1,32 @@
+# 通知（Issue）の自己テスト（手動）。本番サーバーには接続しない・FTPS の情報は渡さない。
+# テスト用の Issue を作り、追記し、閉じるまでを、このリポジトリの GITHUB_TOKEN（issues: write）で確かめる。
+name: 通知の自己テスト
+
+on:
+  workflow_dispatch:
+
+env:
+  DEPLOYER_SUMS_SHA256: e0f9a56673c810843eb7701bafeab59223f6915f6bab4585e17dd482aad006a1
+
+permissions: {}
+
+jobs:
+  selftest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read      # このリポジトリ（非公開）の取得
+      issues: write       # テスト用の Issue を作る・追記する・閉じる
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 公開の仕組みの照合
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
+      - name: 通知の自己テスト
+        run: python3 -m deployer.notify_selftest
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
