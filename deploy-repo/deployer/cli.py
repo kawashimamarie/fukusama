@@ -274,6 +274,8 @@ def cmd_verify_backup(a):
         return 1
     n = len(pl["backup"]["files"]) + (1 if pl["backup"]["htaccess"] else 0)
     size = sum(f.stat().st_size for f in (vb / "files").rglob("*") if f.is_file())
+    if pl["backup"]["htaccess"]:
+        size += (vb / "htaccess.orig").stat().st_size
     summary(head + [f"**合格**：公開前の中身 {n} ファイル（{size:,} バイト）と計画を保存し、取り出して SHA-256 で照合しました"
                     + ("（置き換えるファイルがないため、保存したのは計画だけ）" if n == 0 else "")])
     return 0

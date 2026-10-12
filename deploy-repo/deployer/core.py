@@ -92,16 +92,6 @@ def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
             raise Stop("公開フォルダの中に、ほかのドメインらしいフォルダがあります（接続先が広すぎます）")
         if e["type"] in ("link", "other"):
             raise Stop("公開フォルダの直下に、通常のファイル・フォルダ以外のもの（リンク等）があります")
-    names = {n + ("/" if e["type"] == "dir" else "") for n, e in root.items()}
-    group = None
-    for g in site.root_markers:
-        if (not g and not root) or (g and all(m in names for m in g)):
-            group = list(g)
-            break
-    if group is None:
-        raise Stop("公開フォルダの中身が、このサイトの目印と一致しません（接続先の誤りの可能性）")
-    info["markers"] = group or "空のフォルダ（初回公開）"
-    info["empty"] = not root
     # 外へ出られないこと（ルートより上が見えない）
     # 外へ出られないこと：相対（..）・絶対パス・ホーム（~）・お名前.com の公開フォルダの絶対パス（任意の Secret）。
     # 拒否されるか、ルートとまったく同じ一覧なら合格（Nexus の確認と同じ基準）
@@ -121,6 +111,20 @@ def check_destination(ftp, site, base_url, token, extra_escape_paths=()):
             raise Stop(f"公開フォルダの外が見えます（{label}）。接続先ディレクトリが限定されていません")
         results.append([label, "ルートと同じ（外へ出られない）"])
     info["escape"] = results
+    # このサイトの目印（外へ出られないことを確かめた後なので、一覧はこのサイトのフォルダの中だけ）
+    names = {n + ("/" if e["type"] == "dir" else "") for n, e in root.items()}
+    group = None
+    for g in site.root_markers:
+        if (not g and not root) or (g and all(m in names for m in g)):
+            group = list(g)
+            break
+    if group is None:
+        shown = "、".join(sorted(names)[:30]) + ("、…" if len(names) > 30 else "")
+        esc = "・".join(f"{p} {r}" for p, r in results)
+        raise Stop("公開フォルダの中身が、このサイトの目印と一致しません（接続先の誤りの可能性）。"
+                   f"フォルダの中：{shown or '（空）'}／上位・他サイトへのアクセス：{esc}")
+    info["markers"] = group or "空のフォルダ（初回公開）"
+    info["empty"] = not root
     # 公開中のサイトそのものか（FTPS で読んだ中身と公開URLの中身が同じ）
     info["identity"] = None
     for f in site.identity_files:
