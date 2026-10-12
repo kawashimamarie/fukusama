@@ -1,0 +1,41 @@
+# 読み取り専用の調査：公開の仕組みが触れない既存ファイル（コーポレートの mail.php だけ）を取り出す。
+# パスワードらしき値は伏せてから保存する。サーバーには書き込まない。成果物は1日で消える。
+name: 調査（読み取り専用）
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        options: [corporate/mail.php]
+
+env:
+  DEPLOYER_SUMS_SHA256: 3f9243983547b04123ca16a77cf39ffeb16ad93df50d8dfcbe4410ab5c501189
+
+permissions: {}
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 公開の仕組みの照合
+        run: |
+          echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
+          sha256sum --strict -c deployer/SHA256SUMS
+      - name: 取り出し（読み取り専用・値は伏せる）
+        run: python3 -m deployer.inspect --site corporate --path mail.php --out inspect
+        env:
+          FTPS_CORPORATE_HOST: ${{ secrets.FTPS_CORPORATE_HOST }}
+          FTPS_CORPORATE_USER: ${{ secrets.FTPS_CORPORATE_USER }}
+          FTPS_CORPORATE_PASSWORD: ${{ secrets.FTPS_CORPORATE_PASSWORD }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: inspect-${{ github.run_id }}
+          path: inspect/
+          retention-days: 1

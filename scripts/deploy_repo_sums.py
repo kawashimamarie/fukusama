@@ -15,7 +15,7 @@ from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent / "deploy-repo"
 SUMS = BASE / "deployer" / "SHA256SUMS"
-WORKFLOWS = [BASE / ".github/workflows/deploy.yml", BASE / ".github/workflows/restore.yml"]
+WORKFLOWS = [BASE / ".github/workflows/deploy.yml", BASE / ".github/workflows/restore.yml", BASE / ".github/workflows/inspect.yml"]
 PIN = re.compile(r"^(  DEPLOYER_SUMS_SHA256: )(\S+)$", re.M)
 
 
