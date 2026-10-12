@@ -19,6 +19,18 @@ class FtpsError(Exception):
     pass
 
 
+def _close_data(conn):
+    """データ接続を閉じる。空の一覧などで、サーバーが TLS の終了手順の前に切断しても失敗にしない
+    （転送の成否は制御接続の応答 226 で判定し、ファイルの中身は取得後に SHA-256 で照合する）"""
+    try:
+        if isinstance(conn, ssl.SSLSocket):
+            conn.unwrap()
+    except (ssl.SSLError, OSError):
+        pass
+    finally:
+        conn.close()
+
+
 class _TLS(ftplib.FTP_TLS):
     """データ接続で制御接続の TLS セッションを再利用する（多くの FTP サーバーが要求する）"""
 
@@ -27,6 +39,55 @@ class _TLS(ftplib.FTP_TLS):
         if self._prot_p:
             conn = self.context.wrap_socket(conn, server_hostname=self.host, session=self.sock.session)
         return conn, size
+
+    def retrlines(self, cmd, callback=None):
+        callback = callback or print
+        self.sendcmd("TYPE A")
+        conn = self.transfercmd(cmd)
+        try:
+            with conn.makefile("r", encoding=self.encoding) as fp:
+                while True:
+                    line = fp.readline(self.maxline + 1)
+                    if len(line) > self.maxline:
+                        raise ftplib.Error("got more than %d bytes" % self.maxline)
+                    if not line:
+                        break
+                    callback(line.rstrip("\r\n"))
+        except ssl.SSLError as e:
+            if "SHUTDOWN" not in str(e).upper() and "EOF" not in str(e).upper():
+                raise
+        finally:
+            _close_data(conn)
+        return self.voidresp()
+
+    def retrbinary(self, cmd, callback, blocksize=8192, rest=None):
+        self.voidcmd("TYPE I")
+        conn = self.transfercmd(cmd, rest)
+        try:
+            while True:
+                data = conn.recv(blocksize)
+                if not data:
+                    break
+                callback(data)
+        except ssl.SSLError as e:
+            if "SHUTDOWN" not in str(e).upper() and "EOF" not in str(e).upper():
+                raise
+        finally:
+            _close_data(conn)
+        return self.voidresp()
+
+    def storbinary(self, cmd, fp, blocksize=8192, callback=None, rest=None):
+        self.voidcmd("TYPE I")
+        conn = self.transfercmd(cmd, rest)
+        try:
+            while True:
+                buf = fp.read(blocksize)
+                if not buf:
+                    break
+                conn.sendall(buf)
+        finally:
+            _close_data(conn)
+        return self.voidresp()
 
 
 def check_path(path):
