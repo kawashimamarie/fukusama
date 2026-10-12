@@ -1,5 +1,7 @@
-# 読み取り専用の調査：公開の仕組みが触れない既存ファイル（コーポレートの mail.php だけ）を取り出す。
-# パスワードらしき値は伏せてから保存する。サーバーには書き込まない。成果物は1日で消える。
+# 読み取り専用の調査：公開の仕組みが触れない既存ファイル（コーポレートの mail.php だけ）の PHP の不具合を、
+# この実行環境の中だけで調べる（php -l の構文チェック・字句の種類の読み取り。mail.php は実行しない）。
+# サーバーには書き込まない。中身は一時フォルダーに置いて調べ終えたら消し、成果物（Artifact）は作らない。
+# ログと実行の要約に出すのは、エラーの種類・行番号と、ソースを含まない形の事実だけ。
 name: 調査（読み取り専用）
 
 on:
@@ -10,7 +12,7 @@ on:
         options: [corporate/mail.php]
 
 env:
-  DEPLOYER_SUMS_SHA256: 3f9243983547b04123ca16a77cf39ffeb16ad93df50d8dfcbe4410ab5c501189
+  DEPLOYER_SUMS_SHA256: 037959d8ce38cc65f4ee96111b421bbff251e1462072b966a00af75869bbde9d
 
 permissions: {}
 
@@ -28,14 +30,11 @@ jobs:
         run: |
           echo "${DEPLOYER_SUMS_SHA256}  deployer/SHA256SUMS" | sha256sum --strict -c
           sha256sum --strict -c deployer/SHA256SUMS
-      - name: 取り出し（読み取り専用・値は伏せる）
-        run: python3 -m deployer.inspect --site corporate --path mail.php --out inspect
+      - name: PHP の版
+        run: php -v | head -n 1
+      - name: 調査（読み取り専用・ソースは出さない）
+        run: python3 -m deployer.inspect --site corporate --path mail.php
         env:
           FTPS_CORPORATE_HOST: ${{ secrets.FTPS_CORPORATE_HOST }}
           FTPS_CORPORATE_USER: ${{ secrets.FTPS_CORPORATE_USER }}
           FTPS_CORPORATE_PASSWORD: ${{ secrets.FTPS_CORPORATE_PASSWORD }}
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: inspect-${{ github.run_id }}
-          path: inspect/
-          retention-days: 1
