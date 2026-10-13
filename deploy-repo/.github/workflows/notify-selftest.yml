@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  DEPLOYER_SUMS_SHA256: c74197995ae8c8f4e6514e5226d24953afa4db91c61ca54c6c8715e0fa31e630
+  DEPLOYER_SUMS_SHA256: 44f225b7d8a1ada8eb5a4730299cb55f61a8a777eb5d318aca92161d94c47b2c
 
 permissions: {}
 

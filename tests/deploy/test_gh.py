@@ -175,7 +175,9 @@ class NotifyTests(unittest.TestCase):
 
     def setUp(self):
         self.env = dict(os.environ)
-        self.issues, self.states, self.calls = {}, {}, []
+        self.issues, self.states, self.calls, self.list_lag = {}, {}, [], 0
+        gh._KNOWN.clear()
+        self.addCleanup(gh._KNOWN.clear)
         for k in ("GITHUB_STEP_SUMMARY", "GITHUB_OUTPUT"):
             os.environ.pop(k, None)
         os.environ.update(GITHUB_TOKEN="t", GITHUB_REPOSITORY="o/r", RUN_URL="run1", MODE="auto",
@@ -193,7 +195,16 @@ class NotifyTests(unittest.TestCase):
         import re as _re
         self.calls.append((method, path))
         if method == "GET" and "/issues?state=open" in path:
-            return 200, [dict(i, number=n) for n, i in self.issues.items() if i["state"] == "open"] if "page=1" in path else []
+            if "page=" in path and "page=1" not in path:
+                return 200, []
+            # 本物の GitHub と同じく、作った直後の Issue は一覧にまだ出ないことがある（lag 回の一覧の後に出る）
+            out = []
+            for n, i in self.issues.items():
+                if i["state"] == "open" and i.get("lag", 0) <= 0:
+                    out.append(dict(i, number=n))
+                elif i["state"] == "open":
+                    i["lag"] -= 1
+            return 200, out
         m = _re.search(r"/issues/(\d+)/comments", path)
         if m:
             n = int(m.group(1))
@@ -205,9 +216,13 @@ class NotifyTests(unittest.TestCase):
         if m and method == "PATCH":
             self.issues[int(m.group(1))]["state"] = body["state"]
             return 200, {}
+        if m and method == "GET":
+            n = int(m.group(1))
+            return (200, dict(self.issues[n], number=n)) if n in self.issues else (404, None)
         if path.endswith("/issues") and method == "POST":
             n = len(self.issues) + 1
-            self.issues[n] = {"title": body["title"], "body": body["body"], "state": "open", "comments": []}
+            self.issues[n] = {"title": body["title"], "body": body["body"], "state": "open", "comments": [],
+                              "lag": self.list_lag}
             return 201, {"number": n}
         return 404, None
 
@@ -287,13 +302,30 @@ class NotifyTests(unittest.TestCase):
         gh.notify()
         self.assertEqual(self.issues[1]["comments"], [])
 
+    def test_same_process_finds_new_issue_even_if_list_lags(self):
+        self.list_lag = 5
+        self.states = {"ebisenka": {"last_run": "run1", "last_status": "rolled-back", "handled_sha": "a" * 40}}
+        gh.notify()
+        self.states["ebisenka"].update(last_run="run2", last_status="awaiting-approval", handled_sha="b" * 40)
+        os.environ["RUN_URL"] = "run2"
+        gh.notify()
+        self.assertEqual((len(self.issues), len(self.issues[1]["comments"])), (1, 1))
+
     def test_selftest_flow_passes_against_fake_issue_api(self):
         from deployer import notify_selftest, config as C
         self.addCleanup(C.SITES.pop, "selftest", None)
+        self.addCleanup(gh._KNOWN.clear)
+        self.list_lag = 2
+        self.issues[99] = {"title": "old", "body": gh.MARK.format(site="selftest"), "state": "open", "comments": []}
+        import time as _time
+        self.addCleanup(setattr, _time, "sleep", _time.sleep)
+        _time.sleep = lambda s: None
         self.assertEqual(notify_selftest.main(), 0)
-        self.assertEqual(len(self.issues), 1)
-        self.assertEqual(self.issues[1]["state"], "closed")
-        self.assertIn("通知のテスト", self.issues[1]["body"])
+        self.assertEqual(self.issues[99]["state"], "closed")                    # 前回の残りを片付ける
+        new = [i for n, i in self.issues.items() if n != 99]
+        self.assertEqual(len(new), 1)
+        self.assertEqual(new[0]["state"], "closed")
+        self.assertIn("通知のテスト", new[0]["body"])
 
 
 if __name__ == "__main__":

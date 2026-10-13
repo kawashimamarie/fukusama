@@ -251,14 +251,24 @@ def notify_kind(st, run_url, deploy_result, mode):
     return None
 
 
+_KNOWN = {}   # この実行の中で作った・見つけた Issue の番号（一覧への反映が数秒遅れることがあるため、番号で直接読む）
+
+
 def _find_issue(repo, token, site):
     mark = MARK.format(site=site)
+    n = _KNOWN.get(site)
+    if n:
+        st, it = api(f"/repos/{repo}/issues/{n}", token)
+        if st == 200 and it and it.get("state") == "open" and mark in (it.get("body") or ""):
+            return it
+        _KNOWN.pop(site, None)
     for page in range(1, 6):
         st, items = api(f"/repos/{repo}/issues?state=open&per_page=100&page={page}", token)
         if st != 200 or not items:
             return None
         for it in items:
             if "pull_request" not in it and mark in (it.get("body") or ""):
+                _KNOWN[site] = it["number"]
                 return it
     return None
 
@@ -299,6 +309,7 @@ def notify():
                 api(f"/repos/{repo}/issues/{issue['number']}/comments", token, "POST",
                     {"body": f"{dom}：{st.get('last_status')} になりました（{run_url}）。この通知を閉じます。\n\n---\n_fukushin-deploy_"})
                 api(f"/repos/{repo}/issues/{issue['number']}", token, "PATCH", {"state": "closed", "state_reason": "completed"})
+                _KNOWN.pop(site, None)
                 lines.append(f"- {dom}：解消したため Issue #{issue['number']} を閉じました")
             else:
                 lines.append(f"- {dom}：通知なし（正常）")
@@ -324,6 +335,8 @@ def notify():
             s, j = api(f"/repos/{repo}/issues", token, "POST", {
                 "title": f"[公開] {dom}：{NOTIFY_LABEL[kind]}",
                 "body": MARK.format(site=site) + "\n" + body})
+            if j and j.get("number"):
+                _KNOWN[site] = j["number"]
             lines.append(f"- {dom}：Issue を作成（{kind}・HTTP {s}{'・#' + str(j['number']) if j else ''}）")
     summary("\n".join(lines))
     return 0
