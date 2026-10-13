@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
+# 旧 WordPress の残り（中身のないページ・フィード・API・検索結果）は巡回しない。
+# 旧ページの URL（/lunch/ など）は新しいページへ転送しているため、ここでは止めない。
+Disallow: /sample-page/
+Disallow: /feed/
+Disallow: /comments/feed/
+Disallow: /wp-json/
+Disallow: /wp-admin/
+Disallow: /?s=
 
 Sitemap: https://ebisenka-seavans.com/sitemap.xml

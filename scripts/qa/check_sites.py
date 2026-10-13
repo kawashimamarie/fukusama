@@ -28,6 +28,8 @@ SECRETS = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|github
 NOINDEX_OK = {"404.html", "contact/thanks/index.html"}
 # サーバー側にある既存のファイルを指す参照（ビルドには含めない・公開の仕組みが保護する）
 EXTERNAL_OK = {"fukushin-e.co.jp": {"mail.php"}}
+# 検索エンジンに伝えている正規のホスト（canonical）。コーポレートは移行前から www 付きで登録されている
+CANONICAL_HOST = {"fukushin-e.co.jp": "www.fukushin-e.co.jp"}
 
 
 class Page(HTMLParser):
@@ -121,15 +123,29 @@ def check_site(site, site_dir, problems):
             target = url_to_file(site_dir, u.path)
             if target is None and u.path.lstrip("/") not in EXTERNAL_OK.get(host, set()):
                 bad(f"{rel}：参照先がない {ref}")
-    # robots・sitemap
+    # robots・sitemap（URL は検索エンジンに伝えている正規の形＝canonical のホストで書く。コーポレートは www 付き）
+    canon_host = CANONICAL_HOST.get(host, host)
     if (site_dir / "sitemap.xml").is_file():
+        robots = (site_dir / "robots.txt").read_text() if (site_dir / "robots.txt").is_file() else ""
+        disallow = [l.split(":", 1)[1].strip() for l in robots.splitlines() if l.lower().startswith("disallow:")]
         for loc in re.findall(r"<loc>([^<]+)</loc>", (site_dir / "sitemap.xml").read_text()):
             u = urlparse(loc)
-            if u.netloc != host or url_to_file(site_dir, u.path) is None:
-                bad(f"sitemap.xml：存在しない URL {loc}")
-        if f"Sitemap: https://{host}/sitemap.xml" not in (site_dir / "robots.txt").read_text():
+            target = url_to_file(site_dir, u.path)
+            if u.scheme != "https" or u.netloc != canon_host or target is None:
+                bad(f"sitemap.xml：存在しない URL か、正規のホスト（{canon_host}）でない {loc}")
+                continue
+            if any(d and u.path.startswith(d) for d in disallow):
+                bad(f"sitemap.xml：robots.txt で巡回を止めている URL {loc}")
+            if target.endswith(".html"):
+                pg = Page()
+                pg.feed((site_dir / target).read_text(encoding="utf-8", errors="replace"))
+                if "noindex" in pg.meta.get("robots", ""):
+                    bad(f"sitemap.xml：noindex のページ {loc}")
+                if pg.canonical and pg.canonical != loc:
+                    bad(f"sitemap.xml：ページの canonical（{pg.canonical}）と違う URL {loc}")
+        if f"Sitemap: https://{canon_host}/sitemap.xml" not in robots:
             bad("robots.txt に sitemap の記載がない")
-    elif site.id != "corporate":
+    else:
         bad("sitemap.xml がない")
 
 
