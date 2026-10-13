@@ -110,7 +110,7 @@ jobs:
           shutil.copy2("out/build-manifest.json", "upload/build-manifest.json")
           for s in sites:
               d = s["domain"]
-              if not re.fullmatch(r"[a-z0-9.-]+", d) or not os.path.isdir(os.path.join("out", d)):
+              if not re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+", d) or not os.path.isdir(os.path.join("out", d)):
                   raise SystemExit(f"ビルドにサイトのフォルダがありません：{d}")
               shutil.copytree(os.path.join("out", d), os.path.join("upload", d), symlinks=True)
               print(f"{d}：{sum(len(f) for _, _, f in os.walk(os.path.join('upload', d)))} ファイル")
