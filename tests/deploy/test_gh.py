@@ -200,7 +200,9 @@ class NotifyTests(unittest.TestCase):
             # 本物の GitHub と同じく、作った直後の Issue は一覧にまだ出ないことがある（lag 回の一覧の後に出る）
             out = []
             for n, i in self.issues.items():
-                if i["state"] == "open" and i.get("lag", 0) <= 0:
+                if i.get("stale_open"):                     # 閉じた直後なのに、一覧ではまだ開いて見える
+                    out.append(dict(i, number=n, state="open"))
+                elif i["state"] == "open" and i.get("lag", 0) <= 0:
                     out.append(dict(i, number=n))
                 elif i["state"] == "open":
                     i["lag"] -= 1
@@ -310,6 +312,14 @@ class NotifyTests(unittest.TestCase):
         os.environ["RUN_URL"] = "run2"
         gh.notify()
         self.assertEqual((len(self.issues), len(self.issues[1]["comments"])), (1, 1))
+
+    def test_just_closed_issue_seen_in_lagging_list_is_not_reused(self):
+        self.issues[7] = {"title": "old", "body": gh.MARK.format(site="ebisenka"), "state": "closed",
+                          "comments": [], "stale_open": True}
+        self.states = {"ebisenka": {"last_run": "run1", "last_status": "rolled-back", "handled_sha": "a" * 40}}
+        gh.notify()
+        self.assertEqual(self.issues[7]["comments"], [])                          # 閉じた Issue には書かない
+        self.assertEqual(len([i for i in self.issues.values() if i["state"] == "open"]), 1)
 
     def test_selftest_flow_passes_against_fake_issue_api(self):
         from deployer import notify_selftest, config as C

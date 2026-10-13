@@ -16,7 +16,7 @@ on:
         default: ''
 
 env:
-  DEPLOYER_SUMS_SHA256: 44f225b7d8a1ada8eb5a4730299cb55f61a8a777eb5d318aca92161d94c47b2c
+  DEPLOYER_SUMS_SHA256: cb98f1db9211b3cef9522d08c9f93b39174d2762ee4cb71a2fb9f24c8fc573ac
 
 permissions: {}
 

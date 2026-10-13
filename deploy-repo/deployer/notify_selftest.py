@@ -29,7 +29,7 @@ def main():
         st, items = gh.api(f"/repos/{repo}/issues?state=open&per_page=100", token)
         return [i for i in (items or []) if "pull_request" not in i and mark in (i.get("body") or "")]
 
-    # 前回のテストの残り（テスト用の印のある Issue）を片付ける
+    # 前回のテストの残り（テスト用の印のある Issue）を片付ける（閉じた後、一覧に反映されるまで待つ）
     cleaned = 0
     for it in open_test_issues():
         gh.api(f"/repos/{repo}/issues/{it['number']}", token, "PATCH", {"state": "closed", "state_reason": "not_planned"})
@@ -52,6 +52,9 @@ def main():
         ("published", "c" * 40, "4. 正常 → 閉じる"),
     ]
     results = []
+    if cleaned and not settle(False):
+        gh.summary("## 通知の自己テスト\n**不合格**：前回の残りを閉じた後、一覧に反映されませんでした")
+        return 1
     for i, (status, sha, label) in enumerate(steps):
         os.environ["RUN_URL"] = f"{run}#selftest-{i}" if status != "rolled-back" else f"{run}#selftest-0"
         states[SITE] = {"last_run": os.environ["RUN_URL"], "last_status": status, "handled_sha": sha,

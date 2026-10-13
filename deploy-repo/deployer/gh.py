@@ -268,8 +268,11 @@ def _find_issue(repo, token, site):
             return None
         for it in items:
             if "pull_request" not in it and mark in (it.get("body") or ""):
-                _KNOWN[site] = it["number"]
-                return it
+                # 一覧は数秒遅れることがあるため、番号で読み直して「開いている」ことを確かめる
+                s2, cur = api(f"/repos/{repo}/issues/{it['number']}", token)
+                if s2 == 200 and cur and cur.get("state") == "open":
+                    _KNOWN[site] = it["number"]
+                    return cur
     return None
 
 
