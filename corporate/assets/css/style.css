@@ -1644,6 +1644,7 @@ h3 {
 
   .liquor-products .card-media {
     height: 210px;
+    aspect-ratio: auto;   /* 高さの指定と 16:10 の比率が重なると、幅が 336px に広がり画面からはみ出すため */
   }
 
   .liquor-products__process-media {

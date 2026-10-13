@@ -19,7 +19,8 @@ const SITES = [
   { domain: 'fukushin-e.co.jp', port: 8903, pages: ['/', '/business.html', '/restaurant.html', '/liquor.html', '/food-import.html', '/company.html', '/recruit.html', '/contact.html'] },
 ];
 // 既存の公開中サイトにもともとある事象（今回の変更ではない）。警告として表示し、不合格にはしない
-const KNOWN = [{ domain: 'fukushin-e.co.jp', page: '/liquor.html', vp: 'sp', kind: 'overflow' }];
+// （liquor.html のスマートフォンの 12px のはみ出しは 2026-10-13 に修正したため、一覧から外した＝再発したら不合格）
+const KNOWN = [];
 
 const servers = SITES.map(s => spawn('python3', ['-m', 'http.server', String(s.port), '--bind', '127.0.0.1', '--directory', path.join(out, s.domain)], { stdio: 'ignore' }));
 await new Promise(r => setTimeout(r, 1200));
