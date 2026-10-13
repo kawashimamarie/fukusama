@@ -411,7 +411,8 @@ class CorporateTests(unittest.TestCase):
             self.assertEqual(res["status"], "published")
             touched = sorted(x.split("：", 1)[1].replace("（最後）", "") for x in res["log"])
             self.assertEqual(touched, sorted(["assets/css/style.css", "assets/images/fukuki-bishoku-logo.webp",
-                                              "business.html", "contact.html", "index.html", "restaurant.html"]))
+                                              "business.html", "contact.html", "index.html", "restaurant.html",
+                                              "robots.txt", "sitemap.xml"]))   # 2026-10-13 に追加した SEO のファイル
             self.assertEqual({k: v for k, v in H.tree(r.root).items() if k in protected}, protected)
             (r.dist / "mail.php").write_text("<?php // overwrite attempt")
             d, _, _ = r.run("auto", auto="corporate")
