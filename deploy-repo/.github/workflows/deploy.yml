@@ -3,7 +3,7 @@
 # 自動：次のどれかで起動し、fukusama の main の最新（CI 合格済み）を確かめ、変わったサイトだけを公開する。
 #       ・fukusama の CI 合格の知らせ（repository_dispatch: fukusama-ci-passed。送る側の設定はご本人の承認後）
 #       ・Claude からの手動起動（mode=auto）
-#       ・定期実行（日本時間 8:05〜21:05 の毎時。取りこぼしを拾う予備）
+#       ・定期実行（日本時間 8:23〜21:23 の毎時。取りこぼしを拾う予備）
 #       自動で公開するのは、変数 AUTO_PUBLISH_SITES に入っているサイトの「承認が不要な変更」だけ。
 #       フォーム・送信処理・送信先・個人情報・.htaccess に関わる変更は承認待ち（Issue で知らせる）。
 #       自動の起動どうしは1列に並び（後から来たものが待ちの古いものに置き換わる）、処理済みのコミットは飛ばす。
@@ -16,7 +16,9 @@ name: 公開（福進発展3サイト）
 
 on:
   schedule:
-    - cron: '5 23,0-12 * * *'    # UTC。日本時間 8:05〜21:05 の毎時
+    # UTC。日本時間 8:23〜21:23 の毎時（UTC 23:23・0:23〜12:23）。毎時の開始直後は GitHub が混雑し、遅れたり
+    # 実行されなかったりするため :23 にしている（それでも遅れ・欠落はありうる。主な起動は Claude の mode=auto）
+    - cron: '23 23,0-12 * * *'
   repository_dispatch:
     types: [fukusama-ci-passed]  # 中身（コミット番号）は信用せず、main の最新と CI を自分で確かめる
   workflow_dispatch:
@@ -98,12 +100,29 @@ jobs:
           "$RUNNER_TEMP/venv/bin/pip" install --quiet pillow==12.3.0
           "$RUNNER_TEMP/venv/bin/python" scripts/build_sites.py out
           test "$(python3 -c 'import json;print(json.load(open("out/build-manifest.json"))["sourceCommit"])')" = "${{ needs.resolve.outputs.sha }}"
+      # この実行で処理するサイトのフォルダだけを渡す（保存容量の節約。復元用のバックアップとは別のもの）
+      - name: 処理するサイトだけを選ぶ
+        run: |
+          python3 - <<'PY'
+          import json, os, re, shutil
+          sites = json.loads(os.environ["SITES"])
+          os.makedirs("upload")
+          shutil.copy2("out/build-manifest.json", "upload/build-manifest.json")
+          for s in sites:
+              d = s["domain"]
+              if not re.fullmatch(r"[a-z0-9.-]+", d) or not os.path.isdir(os.path.join("out", d)):
+                  raise SystemExit(f"ビルドにサイトのフォルダがありません：{d}")
+              shutil.copytree(os.path.join("out", d), os.path.join("upload", d), symlinks=True)
+              print(f"{d}：{sum(len(f) for _, _, f in os.walk(os.path.join('upload', d)))} ファイル")
+          PY
+        env:
+          SITES: ${{ needs.resolve.outputs.sites }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: build-${{ github.run_id }}
-          path: out/
+          path: upload/
           include-hidden-files: true    # ebisenka.jp の .htaccess
-          retention-days: 1             # この実行の中でだけ使う（保存容量 500MB の節約）
+          retention-days: 1             # この実行の中でだけ使う（最短の1日。保存容量の節約）
 
   deploy:
     needs: [resolve, build]
